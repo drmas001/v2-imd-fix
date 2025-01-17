@@ -39,14 +39,14 @@ export const useConsultationStore = create<ConsultationStore>((set, get) => ({
             department
           )
         `)
-        .eq('status', 'active') // Only fetch active consultations
+        .eq('status', 'active')
         .order('created_at', { ascending: false });
 
       if (error) throw error;
       
-      // Update local state with the fetched data
       const consultationsWithDates = (data || []).map(consultation => ({
         ...consultation,
+        doctor_name: consultation.doctor?.name || '',
         created_at: new Date(consultation.created_at).toISOString(),
         updated_at: new Date(consultation.updated_at).toISOString(),
         completed_at: consultation.completed_at ? new Date(consultation.completed_at).toISOString() : undefined
@@ -93,7 +93,7 @@ export const useConsultationStore = create<ConsultationStore>((set, get) => ({
         }])
         .select(`
           *,
-          doctor:users(
+          doctor:users!consultations_doctor_id_fkey (
             id,
             name
           )
@@ -154,6 +154,7 @@ export const useConsultationStore = create<ConsultationStore>((set, get) => ({
 
       const updatedConsultation = {
         ...data,
+        doctor_name: data.doctor?.name || '',
         created_at: new Date(data.created_at).toISOString(),
         updated_at: new Date(data.updated_at).toISOString(),
         completed_at: data.completed_at ? new Date(data.completed_at).toISOString() : undefined
@@ -166,7 +167,6 @@ export const useConsultationStore = create<ConsultationStore>((set, get) => ({
         loading: false
       }));
 
-      // Refresh the consultations list to ensure consistency
       await get().fetchConsultations();
     } catch (error) {
       set({ error: (error as Error).message, loading: false });
@@ -202,6 +202,7 @@ export const useConsultationStore = create<ConsultationStore>((set, get) => ({
 
       return {
         ...data,
+        doctor_name: data.doctor?.name || '',
         created_at: new Date(data.created_at).toISOString(),
         updated_at: new Date(data.updated_at).toISOString(),
         completed_at: data.completed_at ? new Date(data.completed_at).toISOString() : undefined
