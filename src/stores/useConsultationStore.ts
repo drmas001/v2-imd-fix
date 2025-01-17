@@ -88,18 +88,10 @@ export const useConsultationStore = create<ConsultationStore>((set, get) => ({
         .from('consultations')
         .insert([{
           ...consultation,
+          doctor_id: null,
           status: 'active'
         }])
-        .select(`
-          *,
-          doctor:users!consultations_doctor_id_fkey (
-            id,
-            name,
-            medical_code,
-            role,
-            department
-          )
-        `)
+        .select('*')
         .single();
 
       if (error) throw error;
