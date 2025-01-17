@@ -41,7 +41,7 @@ const ConsultationMetrics: React.FC<ConsultationMetricsProps> = ({ dateFilter })
     };
 
     filtered.forEach(consultation => {
-      counts[consultation.urgency]++;
+      counts[consultation.urgency as keyof typeof counts]++;
     });
 
     return Object.entries(counts).map(([key, value]) => ({
@@ -61,7 +61,7 @@ const ConsultationMetrics: React.FC<ConsultationMetricsProps> = ({ dateFilter })
         <div>
           <h3 className="text-sm font-medium text-gray-700 mb-4">Distribution by Urgency</h3>
           <div className="h-[200px]">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height="100%" id="consultation-metrics-chart">
               <PieChart>
                 <Pie
                   data={data}

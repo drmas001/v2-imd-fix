@@ -6,9 +6,9 @@ import { DateRangePicker } from '../../ui/DateRangePicker';
 import { usePatientStore } from '../../../stores/usePatientStore';
 import { useConsultationStore } from '../../../stores/useConsultationStore';
 import type { DoctorData, DoctorStatsProps } from '../../../pages/Reports/DoctorStats';
-import SpecialtyStats from '../../../components/Reports/SpecialtyStats';
+import { SpecialtyStats } from './components/SpecialtyStats';
 import SafetyAdmissionStats from '../../../components/Reports/SafetyAdmissionStats';
-import DischargeStats from '../../../components/Reports/DischargeStats';
+import { DischargeStats } from '../../../components/Reports/DischargeStats';
 import OccupancyChart from '../../../components/Reports/OccupancyChart';
 import AdmissionTrends from '../../../components/Reports/AdmissionTrends';
 import ConsultationMetrics from '../../../components/Reports/ConsultationMetrics';
@@ -35,14 +35,21 @@ const AdminReports: React.FC = () => {
 
   const exportData: ExportData = {
     title: 'IMD-Care Administrative Report',
+    generatedAt: new Date().toISOString(),
+    generatedBy: currentUser?.name || 'Unknown',
     patients: patients.map(patient => ({
       id: patient.id,
+      full_name: patient.full_name,
+      created_at: patient.created_at,
       mrn: patient.mrn,
       name: patient.name,
       admission_date: patient.admission_date,
       department: patient.department,
       doctor_name: patient.doctor_name,
+      date_of_birth: patient.date_of_birth,
+      gender: patient.gender,
       admissions: patient.admissions?.map(admission => ({
+        id: admission.id,
         status: admission.status,
         admission_date: admission.admission_date,
         discharge_date: admission.discharge_date,
@@ -50,9 +57,15 @@ const AdminReports: React.FC = () => {
         diagnosis: admission.diagnosis,
         visit_number: admission.visit_number,
         safety_type: admission.safety_type,
+        shift_type: admission.shift_type,
+        is_weekend: admission.is_weekend,
         admitting_doctor: admission.admitting_doctor ? {
-          name: admission.admitting_doctor.name
-        } : undefined
+          id: admission.admitting_doctor.id,
+          name: admission.admitting_doctor.name,
+          medical_code: admission.admitting_doctor.medical_code,
+          role: admission.admitting_doctor.role,
+          department: admission.admitting_doctor.department
+        } : null
       }))
     })),
     consultations,
@@ -91,15 +104,24 @@ const AdminReports: React.FC = () => {
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
             <SpecialtyStats 
-              patients={patients} 
-              consultations={consultations} 
+              patients={patients}
+              consultations={consultations}
             />
-            <DoctorStats dateFilter={dateFilter} />
+            <DoctorStats 
+              dateFilter={dateFilter}
+              consultations={consultations}
+            />
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-            <ConsultationMetrics dateFilter={dateFilter} />
-            <SafetyAdmissionStats dateFilter={dateFilter} />
+            <ConsultationMetrics 
+              dateFilter={dateFilter}
+              consultations={consultations}
+            />
+            <SafetyAdmissionStats 
+              dateFilter={dateFilter}
+              patients={patients}
+            />
           </div>
 
           <div className="mt-6">

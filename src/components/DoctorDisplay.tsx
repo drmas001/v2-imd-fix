@@ -3,11 +3,11 @@ import { User } from 'lucide-react';
 
 interface DoctorDisplayProps {
   doctor?: {
-    id: number;
+    id?: number;
     name: string;
-    medical_code: string;
-    role: 'doctor' | 'nurse' | 'administrator';
-    department: string;
+    medical_code?: string;
+    role?: 'doctor' | 'nurse' | 'administrator';
+    department?: string;
   } | null;
   showIcon?: boolean;
   className?: string;
@@ -30,7 +30,7 @@ const DoctorDisplay: React.FC<DoctorDisplayProps> = ({
   }
 
   const { name, medical_code, role, department } = doctor;
-  const roleDisplay = role.charAt(0).toUpperCase() + role.slice(1);
+  const roleDisplay = role ? role.charAt(0).toUpperCase() + role.slice(1) : 'Doctor';
 
   return (
     <div className={`space-y-1 ${className}`}>

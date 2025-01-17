@@ -24,7 +24,7 @@ const TimelineView: React.FC<TimelineViewProps> = ({
       subtitle: `MRN: ${patient.mrn}`,
       department: patient.department || '',
       status: patient.admissions?.[0]?.status || '',
-      details: patient.diagnosis || ''
+      details: patient.admissions?.[0]?.diagnosis || ''
     })),
     ...consultations.map(consultation => ({
       type: 'consultation',

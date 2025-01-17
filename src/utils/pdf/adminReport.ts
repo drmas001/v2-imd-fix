@@ -6,12 +6,46 @@ import { PDFGenerationError } from './error';
 import { ASSETS } from '../../config/assets';
 import type { ExportData } from '../../types/report';
 import type { TableRow } from '../../types/pdf';
+import html2canvas from 'html2canvas';
 
 interface PDFWithAutoTable extends jsPDF {
   lastAutoTable: {
     finalY: number;
   };
 }
+
+const addChartToPDF = async (doc: jsPDF, chartContainer: HTMLElement, title: string, y: number): Promise<number> => {
+  try {
+    // Wait for any animations to complete
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    const canvas = await html2canvas(chartContainer, {
+      scale: 2, // Increase quality
+      logging: false,
+      useCORS: true,
+      allowTaint: true,
+      backgroundColor: '#ffffff'
+    });
+
+    const imgData = canvas.toDataURL('image/png');
+    const pageWidth = doc.internal.pageSize.getWidth();
+    const margin = 14;
+    const imgWidth = pageWidth - (2 * margin);
+    const imgHeight = (canvas.height * imgWidth) / canvas.width;
+
+    // Add title
+    doc.setFontSize(12);
+    doc.text(title, margin, y);
+    
+    // Add image below title
+    doc.addImage(imgData, 'PNG', margin, y + 5, imgWidth, imgHeight);
+
+    return y + imgHeight + 15;
+  } catch (error) {
+    console.error(`Error adding chart ${title} to PDF:`, error);
+    return y + 10; // Return slightly increased y if failed
+  }
+};
 
 export const generateAdminReport = async (data: ExportData): Promise<jsPDF> => {
   try {
@@ -92,6 +126,35 @@ export const generateAdminReport = async (data: ExportData): Promise<jsPDF> => {
     });
 
     currentY = doc.lastAutoTable.finalY + 15;
+
+    // Define chart sections to capture
+    const chartSections = [
+      { id: '#occupancy-chart', title: 'Occupancy Trend', parentClass: '.bg-white.rounded-xl' },
+      { id: '#admission-trends-chart', title: 'Admission Trends', parentClass: '.bg-white.rounded-xl' },
+      { id: '#specialty-stats-chart', title: 'Specialty Distribution', parentClass: '.bg-white.rounded-lg' },
+      { id: '#doctor-stats-chart', title: 'Doctor Statistics', parentClass: '.space-y-6.bg-white.rounded-xl' },
+      { id: '#consultation-metrics-chart', title: 'Consultation Metrics', parentClass: '.bg-white.rounded-xl' },
+      { id: '#safety-stats-chart', title: 'Safety Statistics', parentClass: '.bg-white.rounded-xl' },
+      { id: '#discharge-stats-chart', title: 'Discharge Statistics', parentClass: '.grid.grid-cols-1' }
+    ];
+
+    // Add each chart section
+    for (const section of chartSections) {
+      const chartElement = document.querySelector(section.id);
+      if (chartElement) {
+        // Find the parent container that contains the full chart section
+        const container = (chartElement.closest(section.parentClass) || chartElement) as HTMLElement;
+        
+        // Add the chart to the PDF
+        currentY = await addChartToPDF(doc, container, section.title, currentY);
+        
+        // Add a new page if not the last chart
+        if (section !== chartSections[chartSections.length - 1]) {
+          doc.addPage();
+          currentY = 15;
+        }
+      }
+    }
 
     // Add footer with page numbers
     const pageCount = doc.getNumberOfPages();

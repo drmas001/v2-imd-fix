@@ -1,108 +1,79 @@
-import React from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { Activity } from 'lucide-react';
+import React, { useMemo } from 'react';
+import type { Consultation } from '../../types/consultation';
+import { ResponsiveContainer } from 'recharts';
 
 interface SpecialtyStatsProps {
-  patients: any[];
-  consultations: any[];
+  consultations: Consultation[];
 }
 
-const specialties = [
-  'Internal Medicine',
-  'Pulmonology',
-  'Neurology',
-  'Gastroenterology',
-  'Rheumatology',
-  'Endocrinology',
-  'Hematology',
-  'Infectious Disease',
-  'Thrombosis Medicine',
-  'Immunology & Allergy'
-];
+interface SpecialtyData {
+  specialty: string;
+  count: number;
+  percentage: number;
+}
 
-const SpecialtyStats: React.FC<SpecialtyStatsProps> = ({ patients, consultations }) => {
-  const getSpecialtyData = () => {
-    return specialties.map(specialty => {
-      // Count active patients in this specialty
-      const activePatients = patients.filter(patient => 
-        patient.admissions?.some((admission: any) => 
-          admission.department === specialty && 
-          admission.status === 'active'
-        )
-      ).length;
+const SpecialtyStats: React.FC<SpecialtyStatsProps> = ({ consultations }) => {
+  const specialtyStats = useMemo(() => {
+    const stats = consultations.reduce((acc: { [key: string]: number }, consultation) => {
+      const specialty = consultation.consultation_specialty || 'Unspecified';
+      acc[specialty] = (acc[specialty] || 0) + 1;
+      return acc;
+    }, {});
 
-      // Count active consultations for this specialty
-      const activeConsultations = consultations.filter(consultation =>
-        consultation.consultation_specialty === specialty &&
-        consultation.status === 'active'
-      ).length;
+    const total = consultations.length;
+    
+    return Object.entries(stats)
+      .map(([specialty, count]): SpecialtyData => ({
+        specialty,
+        count,
+        percentage: (count / total) * 100
+      }))
+      .sort((a, b) => b.count - a.count);
+  }, [consultations]);
 
-      // Calculate occupancy rate (mock data - replace with actual calculation)
-      const occupancyRate = Math.min(100, Math.round((activePatients / (activePatients + 5)) * 100));
-
-      return {
-        name: specialty,
-        patients: activePatients,
-        consultations: activeConsultations,
-        occupancyRate
-      };
-    });
-  };
-
-  const data = getSpecialtyData();
+  if (consultations.length === 0) {
+    return (
+      <div className="p-4 text-center text-gray-500">
+        No consultation data available
+      </div>
+    );
+  }
 
   return (
-    <div className="bg-white rounded-lg border border-gray-200 p-4">
-      <div className="flex items-center space-x-2 mb-4">
-        <Activity className="h-5 w-5 text-indigo-600" />
-        <h3 className="text-lg font-semibold text-gray-900">Specialty Statistics</h3>
-      </div>
-
+    <div className="bg-white rounded-lg shadow p-4">
+      <h2 className="text-lg font-semibold mb-4">Specialty Distribution</h2>
       <div className="h-[400px]">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart
-            data={data}
-            margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
-          >
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis 
-              dataKey="name" 
-              angle={-45}
-              textAnchor="end"
-              height={100}
-              interval={0}
-              tick={{ fontSize: 12 }}
-            />
-            <YAxis />
-            <Tooltip />
-            <Legend />
-            <Bar dataKey="patients" name="Active Patients" fill="#4f46e5" />
-            <Bar dataKey="consultations" name="Active Consultations" fill="#06b6d4" />
-            <Bar dataKey="occupancyRate" name="Occupancy Rate %" fill="#10b981" />
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-
-      <div className="mt-4 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {data.map(specialty => (
-          <div 
-            key={specialty.name}
-            className="p-3 bg-gray-50 rounded-lg"
-          >
-            <h4 className="font-medium text-gray-900 mb-2">{specialty.name}</h4>
-            <div className="space-y-1 text-sm">
-              <p className="text-gray-600">
-                Active Patients: <span className="font-medium text-gray-900">{specialty.patients}</span>
-              </p>
-              <p className="text-gray-600">
-                Consultations: <span className="font-medium text-gray-900">{specialty.consultations}</span>
-              </p>
-              <p className="text-gray-600">
-                Occupancy: <span className="font-medium text-gray-900">{specialty.occupancyRate}%</span>
-              </p>
-            </div>
+        <ResponsiveContainer width="100%" height="100%" id="specialty-stats-chart">
+          <div className="overflow-x-auto">
+            <table className="min-w-full table-auto">
+              <thead>
+                <tr className="bg-gray-50">
+                  <th className="px-4 py-2 text-left">Specialty</th>
+                  <th className="px-4 py-2 text-right">Count</th>
+                  <th className="px-4 py-2 text-right">Percentage</th>
+                </tr>
+              </thead>
+              <tbody>
+                {specialtyStats.map((stat) => (
+                  <tr key={stat.specialty} className="border-t">
+                    <td className="px-4 py-2">{stat.specialty}</td>
+                    <td className="px-4 py-2 text-right">{stat.count}</td>
+                    <td className="px-4 py-2 text-right">
+                      {stat.percentage.toFixed(1)}%
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+              <tfoot className="border-t-2">
+                <tr className="font-semibold">
+                  <td className="px-4 py-2">Total</td>
+                  <td className="px-4 py-2 text-right">{consultations.length}</td>
+                  <td className="px-4 py-2 text-right">100%</td>
+                </tr>
+              </tfoot>
+            </table>
           </div>
-        ))}
+        </ResponsiveContainer>
       </div>
     </div>
   );

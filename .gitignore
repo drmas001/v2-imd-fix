@@ -39,3 +39,5 @@ yarn-error.log*
 
 # Vite
 vite.config.ts.timestamp-*
+# Local Netlify folder
+.netlify

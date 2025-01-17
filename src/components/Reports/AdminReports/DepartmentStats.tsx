@@ -1,65 +1,96 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
 import ResponsiveChart from './ResponsiveChart';
+import { supabase } from '../../../lib/supabase';
 import type { Patient } from '../../../types/patient';
 import type { Consultation } from '../../../types/consultation';
 
-interface DepartmentStatsProps {
-  patients: Patient[];
-  consultations: Consultation[];
-  dateFilter: {
-    startDate: string;
-    endDate: string;
-    period: string;
-  };
+interface DepartmentData {
+  name: string;
+  patients: number;
+  consultations: number;
+  occupancyRate: number;
 }
 
-const DepartmentStats: React.FC<DepartmentStatsProps> = ({ patients, consultations, dateFilter }) => {
-  const departments = [
-    'Internal Medicine',
-    'Pulmonology',
-    'Neurology',
-    'Gastroenterology',
-    'Rheumatology',
-    'Endocrinology',
-    'Hematology',
-    'Infectious Disease',
-    'Thrombosis Medicine',
-    'Immunology & Allergy'
-  ];
+interface DepartmentStat {
+  department_name: string;
+  total_patients: number;
+  total_consultations: number;
+  occupancy_rate: number;
+}
 
-  const getDepartmentData = () => {
-    return departments.map(department => {
-      const deptPatients = patients.filter(patient => 
-        patient.department === department &&
-        new Date(patient.admission_date || '') >= new Date(dateFilter.startDate) &&
-        new Date(patient.admission_date || '') <= new Date(dateFilter.endDate)
-      );
+const DepartmentStats: React.FC = () => {
+  const [departmentData, setDepartmentData] = useState<DepartmentData[]>([]);
+  const [loading, setLoading] = useState(true);
 
-      const deptConsultations = consultations.filter(consultation =>
-        consultation.consultation_specialty === department &&
-        new Date(consultation.created_at) >= new Date(dateFilter.startDate) &&
-        new Date(consultation.created_at) <= new Date(dateFilter.endDate)
-      );
+  useEffect(() => {
+    const fetchDepartmentStats = async () => {
+      setLoading(true);
+      try {
+        const { data, error } = await supabase
+          .rpc('get_department_statistics');
 
-      return {
-        name: department,
-        patients: deptPatients.length,
-        consultations: deptConsultations.length
-      };
-    });
-  };
+        if (error) throw error;
+
+        const formattedData = data.map((stat: DepartmentStat) => ({
+          name: stat.department_name,
+          patients: Number(stat.total_patients),
+          consultations: Number(stat.total_consultations),
+          occupancyRate: stat.occupancy_rate
+        }));
+
+        setDepartmentData(formattedData);
+      } catch (error) {
+        console.error('Error fetching department statistics:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDepartmentStats();
+  }, []);
+
+  if (loading) {
+    return <div>Loading department statistics...</div>;
+  }
 
   return (
-    <ResponsiveChart title="Department Statistics" subtitle="Patient distribution by department">
-      <BarChart data={getDepartmentData()}>
+    <ResponsiveChart title="Department Statistics" subtitle="All-time patient distribution by department">
+      <BarChart 
+        data={departmentData} 
+        margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
+        height={400}
+      >
         <CartesianGrid strokeDasharray="3 3" />
-        <XAxis dataKey="name" angle={-45} textAnchor="end" height={100} />
+        <XAxis 
+          dataKey="name" 
+          angle={-45} 
+          textAnchor="end" 
+          height={100} 
+          interval={0}
+          tick={{ fontSize: 12 }}
+        />
         <YAxis />
         <Tooltip />
         <Legend />
-        <Bar dataKey="patients" name="Patients" fill="#4f46e5" radius={[4, 4, 0, 0]} />
-        <Bar dataKey="consultations" name="Consultations" fill="#10b981" radius={[4, 4, 0, 0]} />
+        <Bar 
+          dataKey="patients" 
+          name="Total Patients" 
+          fill="#4f46e5" 
+          radius={[4, 4, 0, 0]} 
+        />
+        <Bar 
+          dataKey="consultations" 
+          name="Total Consultations" 
+          fill="#10b981" 
+          radius={[4, 4, 0, 0]} 
+        />
+        <Bar
+          dataKey="occupancyRate"
+          name="Occupancy Rate %"
+          fill="#6366f1"
+          radius={[4, 4, 0, 0]}
+        />
       </BarChart>
     </ResponsiveChart>
   );

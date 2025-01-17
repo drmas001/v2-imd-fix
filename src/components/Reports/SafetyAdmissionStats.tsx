@@ -1,24 +1,15 @@
 import React from 'react';
-import { Shield } from 'lucide-react';
-import { usePatientStore } from '../../stores/usePatientStore';
-import SafetyPieChart from './SafetyStats/SafetyPieChart';
-import SafetyMetrics from './SafetyStats/SafetyMetrics';
-import SafetyTypeList from './SafetyStats/SafetyTypeList';
-import SafetyLegend from './SafetyStats/SafetyLegend';
+import { Shield, Activity, Clock } from 'lucide-react';
 import type { Patient } from '../../types/patient';
+import type { DateFilter } from '../../types/report';
 import type { Admission } from '../../types/admission';
 
 interface SafetyAdmissionStatsProps {
-  dateFilter: {
-    startDate: string;
-    endDate: string;
-    period: string;
-  };
+  patients: Patient[];
+  dateFilter: DateFilter;
 }
 
-const SafetyAdmissionStats: React.FC<SafetyAdmissionStatsProps> = ({ dateFilter }) => {
-  const { patients } = usePatientStore();
-
+const SafetyAdmissionStats: React.FC<SafetyAdmissionStatsProps> = ({ patients, dateFilter }) => {
   // Get all active admissions within date range
   const activeAdmissions = patients.filter((patient: Patient) => {
     const admissions = patient.admissions as Admission[] | undefined;
@@ -46,32 +37,8 @@ const SafetyAdmissionStats: React.FC<SafetyAdmissionStatsProps> = ({ dateFilter 
     return acc;
   }, {} as Record<string, number>);
 
-  // Format data for components
-  const data = [
-    {
-      type: 'Emergency',
-      count: safetyData['emergency'] || 0,
-      color: '#ef4444',
-      description: 'Requires immediate medical attention'
-    },
-    {
-      type: 'Observation',
-      count: safetyData['observation'] || 0,
-      color: '#f59e0b',
-      description: 'Needs close monitoring'
-    },
-    {
-      type: 'Short Stay',
-      count: safetyData['short-stay'] || 0,
-      color: '#10b981',
-      description: 'Planned brief admission'
-    }
-  ];
-
-  // Calculate total safety admissions
-  const totalSafetyAdmissions = data.reduce((sum, item) => sum + item.count, 0);
-
-  // Calculate safety rate
+  // Calculate total safety admissions and rate
+  const totalSafetyAdmissions = Object.values(safetyData).reduce((sum, count) => sum + count, 0);
   const totalActiveAdmissions = activeAdmissions.length;
   const safetyRate = totalActiveAdmissions > 0 
     ? Math.round((totalSafetyAdmissions / totalActiveAdmissions) * 100) 
@@ -112,27 +79,51 @@ const SafetyAdmissionStats: React.FC<SafetyAdmissionStatsProps> = ({ dateFilter 
           </div>
           <div>
             <h2 className="text-lg font-semibold text-gray-900">Safety Admission Statistics</h2>
-            <p className="text-sm text-gray-500">Active safety admissions overview</p>
+            <p className="text-sm text-gray-500">
+              {totalSafetyAdmissions} safety admissions ({safetyRate}% of total)
+            </p>
           </div>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <div className="space-y-6">
-          <SafetyMetrics
-            total={totalSafetyAdmissions}
-            safetyRate={safetyRate}
-            averageStay={calculateAverageStay()}
-            emergencyCount={safetyData['emergency'] || 0}
-            observationCount={safetyData['observation'] || 0}
-            shortStayCount={safetyData['short-stay'] || 0}
-          />
-          <SafetyLegend />
+      <div className="grid grid-cols-1 gap-6">
+        {/* Safety Metrics */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="p-4 bg-red-50 rounded-lg">
+            <p className="text-sm font-medium text-red-600">Emergency</p>
+            <p className="text-2xl font-bold text-red-900">{safetyData['emergency'] || 0}</p>
+            <p className="text-sm text-red-600">Requires immediate attention</p>
+          </div>
+          <div className="p-4 bg-yellow-50 rounded-lg">
+            <p className="text-sm font-medium text-yellow-600">Observation</p>
+            <p className="text-2xl font-bold text-yellow-900">{safetyData['observation'] || 0}</p>
+            <p className="text-sm text-yellow-600">Needs close monitoring</p>
+          </div>
+          <div className="p-4 bg-green-50 rounded-lg">
+            <p className="text-sm font-medium text-green-600">Short Stay</p>
+            <p className="text-2xl font-bold text-green-900">{safetyData['short-stay'] || 0}</p>
+            <p className="text-sm text-green-600">Planned brief admission</p>
+          </div>
         </div>
-        
-        <div className="space-y-6">
-          <SafetyPieChart data={data} />
-          <SafetyTypeList data={data} total={totalSafetyAdmissions} />
+
+        {/* Additional Metrics */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="p-4 bg-indigo-50 rounded-lg">
+            <div className="flex items-center space-x-2 mb-1">
+              <Activity className="h-4 w-4 text-indigo-600" />
+              <p className="text-sm font-medium text-indigo-600">Safety Rate</p>
+            </div>
+            <p className="text-2xl font-bold text-indigo-900">{safetyRate}%</p>
+            <p className="text-xs text-indigo-600">of total admissions</p>
+          </div>
+          <div className="p-4 bg-blue-50 rounded-lg">
+            <div className="flex items-center space-x-2 mb-1">
+              <Clock className="h-4 w-4 text-blue-600" />
+              <p className="text-sm font-medium text-blue-600">Average Stay</p>
+            </div>
+            <p className="text-2xl font-bold text-blue-900">{calculateAverageStay()} days</p>
+            <p className="text-xs text-blue-600">for safety admissions</p>
+          </div>
         </div>
       </div>
     </div>

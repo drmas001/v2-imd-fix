@@ -71,7 +71,7 @@ const AdmissionTrends: React.FC<AdmissionTrendsProps> = ({ dateFilter }) => {
       <h2 className="text-lg font-semibold text-gray-900 mb-6">Admission Trends</h2>
       
       <div className="h-[400px]">
-        <ResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer width="100%" height="100%" id="admission-trends-chart">
           <AreaChart
             data={data}
             margin={{ top: 20, right: 30, left: 20, bottom: 20 }}

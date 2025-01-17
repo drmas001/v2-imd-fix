@@ -90,37 +90,31 @@ export const useLongStayStore = create<LongStayStore>((set) => ({
 
       if (error) throw error;
 
-      const longStayPatients: Patient[] = (data as unknown as AdmissionResponse[]).map(admission => {
-        const admissionData: Admission = {
+      const longStayPatients: Patient[] = (data as unknown as AdmissionResponse[]).map(admission => ({
+        id: admission.id,
+        full_name: admission.patients.name,
+        created_at: new Date().toISOString(),
+        mrn: admission.patients.mrn,
+        name: admission.patients.name,
+        gender: admission.patients.gender,
+        date_of_birth: admission.patients.date_of_birth,
+        department: admission.department,
+        admission_date: admission.admission_date,
+        doctor_name: admission.admitting_doctor?.name,
+        admissions: [{
           id: admission.id,
-          patient_id: admission.patient_id,
+          status: admission.status,
           admission_date: admission.admission_date,
-          discharge_date: admission.discharge_date,
+          discharge_date: admission.discharge_date || undefined,
+          visit_number: admission.visit_number,
           department: admission.department,
           diagnosis: admission.diagnosis,
-          status: admission.status,
           safety_type: admission.safety_type || undefined,
           shift_type: admission.shift_type,
           is_weekend: admission.is_weekend,
-          visit_number: admission.visit_number,
-          admitting_doctor_id: admission.admitting_doctor_id,
-          admitting_doctor: admission.admitting_doctor
-        };
-
-        return {
-          id: admission.patients.id,
-          mrn: admission.patients.mrn,
-          name: admission.patients.name,
-          gender: admission.patients.gender,
-          date_of_birth: admission.patients.date_of_birth,
-          department: admission.department,
-          doctor_name: admission.admitting_doctor?.name,
-          diagnosis: admission.diagnosis,
-          admission_date: admission.admission_date,
-          doctor: admission.admitting_doctor,
-          admissions: [admissionData]
-        };
-      });
+          admitting_doctor: admission.admitting_doctor || undefined
+        }]
+      }));
 
       set({ 
         patients: longStayPatients, 

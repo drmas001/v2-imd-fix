@@ -1,145 +1,185 @@
-import React from 'react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import React, { useMemo, useEffect } from 'react';
 import { usePatientStore } from '../../stores/usePatientStore';
-import { formatDate } from '../../utils/dateFormat';
+import type { DateFilter } from '../../types/dateFilter';
+import { Card } from '../ui/Card';
+import { Spinner } from '../ui/Spinner';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, LineChart, Line } from 'recharts';
 
 interface DischargeStatsProps {
-  dateFilter: {
-    startDate: string;
-    endDate: string;
-    period: string;
-  };
+  dateFilter: DateFilter;
 }
 
-const DischargeStats: React.FC<DischargeStatsProps> = ({ dateFilter }) => {
-  const { patients } = usePatientStore();
+export const DischargeStats: React.FC<DischargeStatsProps> = ({ dateFilter }) => {
+  const { patients, loading, fetchPatients } = usePatientStore();
 
-  const getDischargeData = () => {
-    const dischargedPatients = patients.filter(patient =>
-      patient.admissions?.some(admission =>
-        admission.status === 'discharged' &&
-        admission.discharge_date &&
-        new Date(admission.discharge_date) >= new Date(dateFilter.startDate) &&
-        new Date(admission.discharge_date) <= new Date(dateFilter.endDate)
-      )
-    );
+  useEffect(() => {
+    // Fetch all discharged patients
+    fetchPatients(true);
+  }, [fetchPatients]);
 
-    const specialtyData = new Map();
-    dischargedPatients.forEach(patient => {
-      const admission = patient.admissions?.find(a => a.status === 'discharged');
-      if (admission) {
-        const specialty = admission.department;
-        const currentCount = specialtyData.get(specialty) || 0;
-        specialtyData.set(specialty, currentCount + 1);
-      }
+  const metrics = useMemo(() => {
+    if (!patients || patients.length === 0) {
+      return {
+        totalDischarges: 0,
+        avgLengthOfStay: 0,
+        departmentDischarges: {},
+        timelineMap: new Map<string, number>()
+      };
+    }
+
+    const startDate = new Date(dateFilter.startDate);
+    const endDate = new Date(dateFilter.endDate);
+    endDate.setHours(23, 59, 59, 999); // Include the entire end date
+
+    let totalDischarges = 0;
+    let totalLengthOfStay = 0;
+    const departmentDischarges: { [key: string]: number } = {};
+    const timelineMap = new Map<string, number>();
+
+    // Initialize timeline map with all dates
+    const currentDate = new Date(startDate);
+    while (currentDate <= endDate) {
+      timelineMap.set(currentDate.toISOString().split('T')[0], 0);
+      currentDate.setDate(currentDate.getDate() + 1);
+    }
+
+    patients.forEach(patient => {
+      if (!patient.admissions) return;
+
+      patient.admissions.forEach(admission => {
+        if (!admission.discharge_date) return;
+
+        const dischargeDate = new Date(admission.discharge_date);
+        if (dischargeDate >= startDate && dischargeDate <= endDate) {
+          totalDischarges++;
+
+          // Calculate length of stay
+          const admissionDate = new Date(admission.admission_date);
+          const lengthOfStay = Math.ceil((dischargeDate.getTime() - admissionDate.getTime()) / (1000 * 60 * 60 * 24));
+          totalLengthOfStay += lengthOfStay;
+
+          // Count discharges by department
+          departmentDischarges[admission.department] = (departmentDischarges[admission.department] || 0) + 1;
+
+          // Add to timeline
+          const dischargeDateStr = dischargeDate.toISOString().split('T')[0];
+          if (timelineMap.has(dischargeDateStr)) {
+            timelineMap.set(dischargeDateStr, (timelineMap.get(dischargeDateStr) || 0) + 1);
+          }
+        }
+      });
     });
 
-    return Array.from(specialtyData.entries()).map(([specialty, count]) => ({
-      specialty,
-      discharges: count
-    }));
-  };
+    return {
+      totalDischarges,
+      avgLengthOfStay: totalDischarges > 0 ? Math.round(totalLengthOfStay / totalDischarges * 10) / 10 : 0,
+      departmentDischarges,
+      timelineMap
+    };
+  }, [patients, dateFilter]);
 
-  const calculateAverageStay = () => {
-    const dischargedPatients = patients.filter(patient =>
-      patient.admissions?.some(admission =>
-        admission.status === 'discharged' &&
-        admission.discharge_date &&
-        new Date(admission.discharge_date) >= new Date(dateFilter.startDate) &&
-        new Date(admission.discharge_date) <= new Date(dateFilter.endDate)
-      )
+  if (loading) {
+    return (
+      <div className="flex justify-center items-center h-64">
+        <Spinner size="lg" />
+      </div>
     );
+  }
 
-    if (dischargedPatients.length === 0) return 0;
+  const timelineData = Array.from(metrics.timelineMap.entries()).map(([date, count]) => ({
+    date,
+    discharges: count
+  }));
 
-    const totalDays = dischargedPatients.reduce((sum, patient) => {
-      const admission = patient.admissions?.find(a => a.status === 'discharged');
-      if (admission && admission.discharge_date) {
-        const admissionDate = new Date(admission.admission_date);
-        const dischargeDate = new Date(admission.discharge_date);
-        const days = Math.ceil((dischargeDate.getTime() - admissionDate.getTime()) / (1000 * 60 * 60 * 24));
-        return sum + days;
-      }
-      return sum;
-    }, 0);
-
-    return Math.round(totalDays / dischargedPatients.length);
-  };
-
-  const data = getDischargeData();
-  const averageStay = calculateAverageStay();
-  const totalDischarges = data.reduce((sum, item) => sum + item.discharges, 0);
+  const departmentData = Object.entries(metrics.departmentDischarges).map(([department, count]) => ({
+    department,
+    discharges: count
+  }));
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
-      <h2 className="text-lg font-semibold text-gray-900 mb-6">Discharge Statistics</h2>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
-        <div className="p-4 bg-indigo-50 rounded-lg">
-          <p className="text-sm font-medium text-indigo-600">Total Discharges</p>
-          <p className="text-2xl font-bold text-indigo-900">{totalDischarges}</p>
+    <div id="discharge-stats-chart" className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+      <Card>
+        <div className="p-4">
+          <h3 className="text-lg font-semibold text-gray-900">Discharged Patients</h3>
+          <p className="mt-2 text-3xl font-bold text-indigo-600">{metrics.totalDischarges}</p>
         </div>
-        <div className="p-4 bg-green-50 rounded-lg">
-          <p className="text-sm font-medium text-green-600">Average Length of Stay</p>
-          <p className="text-2xl font-bold text-green-900">{averageStay} days</p>
-        </div>
-        <div className="p-4 bg-blue-50 rounded-lg">
-          <p className="text-sm font-medium text-blue-600">Discharge Rate</p>
-          <p className="text-2xl font-bold text-blue-900">
-            {Math.round((totalDischarges / patients.length) * 100)}%
-          </p>
-        </div>
-      </div>
+      </Card>
 
-      <div className="h-[400px]">
-        <ResponsiveContainer width="100%" height="100%">
-          <BarChart
-            data={data}
-            margin={{ top: 20, right: 30, left: 20, bottom: 60 }}
-          >
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis
-              dataKey="specialty"
-              angle={-45}
-              textAnchor="end"
-              height={100}
-              interval={0}
-            />
-            <YAxis />
-            <Tooltip />
-            <Legend />
-            <Bar
-              dataKey="discharges"
-              name="Discharged Patients"
-              fill="#4f46e5"
-              radius={[4, 4, 0, 0]}
-            />
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
+      <Card>
+        <div className="p-4">
+          <h3 className="text-lg font-semibold text-gray-900">Total Discharges</h3>
+          <p className="mt-2 text-3xl font-bold text-indigo-600">{metrics.totalDischarges}</p>
+        </div>
+      </Card>
 
-      <div className="mt-6 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {data.map(item => (
-          <div
-            key={item.specialty}
-            className="p-4 bg-gray-50 rounded-lg"
-          >
-            <h4 className="font-medium text-gray-900 mb-2">{item.specialty}</h4>
-            <div className="space-y-1">
-              <p className="text-sm text-gray-600">
-                Discharges: <span className="font-medium text-gray-900">{item.discharges}</span>
-              </p>
-              <p className="text-sm text-gray-600">
-                Rate: <span className="font-medium text-gray-900">
-                  {Math.round((item.discharges / totalDischarges) * 100)}%
-                </span>
-              </p>
-            </div>
+      <Card>
+        <div className="p-4">
+          <h3 className="text-lg font-semibold text-gray-900">Average Length of Stay</h3>
+          <p className="mt-2 text-3xl font-bold text-indigo-600">{metrics.avgLengthOfStay} days</p>
+        </div>
+      </Card>
+
+      <Card className="lg:col-span-4">
+        <div className="p-4">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Discharges by Department</h3>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%" id="discharge-stats-chart">
+              <BarChart data={departmentData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis 
+                  dataKey="department" 
+                  angle={-45} 
+                  textAnchor="end" 
+                  height={100}
+                  interval={0}
+                  tick={{ fontSize: 12 }}
+                />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Bar 
+                  dataKey="discharges" 
+                  name="Discharges" 
+                  fill="#4f46e5" 
+                  radius={[4, 4, 0, 0]}
+                />
+              </BarChart>
+            </ResponsiveContainer>
           </div>
-        ))}
-      </div>
+        </div>
+      </Card>
+
+      <Card className="lg:col-span-4">
+        <div className="p-4">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Discharge Timeline</h3>
+          <div className="h-64">
+            <ResponsiveContainer width="100%" height="100%">
+              <LineChart data={timelineData}>
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis 
+                  dataKey="date" 
+                  angle={-45} 
+                  textAnchor="end" 
+                  height={60}
+                  interval={0}
+                />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Line 
+                  type="monotone" 
+                  dataKey="discharges" 
+                  name="Discharges" 
+                  stroke="#4f46e5" 
+                  strokeWidth={2}
+                  dot={{ r: 4 }}
+                  activeDot={{ r: 6 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </Card>
     </div>
   );
 };
-
-export default DischargeStats;

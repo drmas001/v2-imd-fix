@@ -1,11 +1,33 @@
 import { jsPDF } from 'jspdf';
-import autoTable from 'jspdf-autotable';
+import autoTable, { UserOptions, FontStyle } from 'jspdf-autotable';
 import { format } from 'date-fns';
 import { ASSETS } from '../config/assets';
 import type { ExportData } from '../types/report';
 import { PDF_CONSTANTS } from './pdf/constants';
 import { createTableOptions } from './pdf/tables';
 import { PDFGenerationError } from './pdf/error';
+
+const formatDate = (date: string | Date, includeTime: boolean = false): string => {
+  const dateObj = new Date(date);
+  return format(dateObj, includeTime ? 'dd/MM/yyyy HH:mm' : 'dd/MM/yyyy');
+};
+
+const getTableBaseStyles = (): Partial<UserOptions> => ({
+  styles: {
+    font: 'helvetica',
+    fontSize: 10,
+    cellPadding: 5,
+  },
+  headStyles: {
+    fillColor: [63, 81, 181],
+    textColor: 255,
+    fontSize: 11,
+    fontStyle: 'bold' as FontStyle,
+  },
+  alternateRowStyles: {
+    fillColor: [245, 247, 250],
+  },
+});
 
 export const exportDailyReport = async (data: ExportData): Promise<void> => {
   try {
@@ -38,11 +60,11 @@ export const exportDailyReport = async (data: ExportData): Promise<void> => {
     
     currentY += 25;
     doc.setFontSize(12);
-    doc.text(`Generated on: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, pageWidth / 2, currentY, { align: 'center' });
+    doc.text(`Generated on: ${formatDate(new Date(), true)}`, pageWidth / 2, currentY, { align: 'center' });
     
     currentY += 7;
     doc.text(
-      `Period: ${format(new Date(data.dateFilter.startDate), 'dd/MM/yyyy')} to ${format(new Date(data.dateFilter.endDate), 'dd/MM/yyyy')}`,
+      `Period: ${formatDate(data.dateFilter.startDate)} to ${formatDate(data.dateFilter.endDate)}`,
       pageWidth / 2,
       currentY,
       { align: 'center' }
@@ -58,13 +80,14 @@ export const exportDailyReport = async (data: ExportData): Promise<void> => {
 
       autoTable(doc, {
         ...createTableOptions(currentY),
+        ...getTableBaseStyles(),
         head: [['Patient', 'MRN', 'Specialty', 'Doctor', 'Created', 'Urgency']],
         body: data.consultations.map(consultation => [
           consultation.patient_name,
           consultation.mrn,
           consultation.consultation_specialty,
           consultation.doctor_name || 'Pending',
-          format(new Date(consultation.created_at), 'dd/MM/yyyy HH:mm'),
+          formatDate(consultation.created_at, true),
           consultation.urgency
         ])
       });
@@ -80,6 +103,7 @@ export const exportDailyReport = async (data: ExportData): Promise<void> => {
 
       autoTable(doc, {
         ...createTableOptions(currentY),
+        ...getTableBaseStyles(),
         head: [['Patient', 'Medical Number', 'Specialty', 'Type', 'Status']],
         body: data.appointments.map(appointment => [
           appointment.patientName,
@@ -107,6 +131,7 @@ export const exportDailyReport = async (data: ExportData): Promise<void> => {
 
     autoTable(doc, {
       ...createTableOptions(currentY),
+      ...getTableBaseStyles(),
       head: [['Metric', 'Count']],
       body: summaryData,
       margin: { left: 14 },
@@ -150,12 +175,12 @@ export const exportLongStayReport = async (patients: any[], options: { dateRange
     
     currentY += 10;
     doc.setFontSize(12);
-    doc.text(`Generated on: ${format(new Date(), 'dd/MM/yyyy HH:mm')}`, pageWidth / 2, currentY, { align: 'center' });
+    doc.text(`Generated on: ${formatDate(new Date(), true)}`, pageWidth / 2, currentY, { align: 'center' });
 
     if (options.dateRange) {
       currentY += 7;
       doc.text(
-        `Period: ${format(new Date(options.dateRange.startDate), 'dd/MM/yyyy')} to ${format(new Date(options.dateRange.endDate), 'dd/MM/yyyy')}`,
+        `Period: ${formatDate(options.dateRange.startDate)} to ${formatDate(options.dateRange.endDate)}`,
         pageWidth / 2,
         currentY,
         { align: 'center' }
@@ -168,6 +193,7 @@ export const exportLongStayReport = async (patients: any[], options: { dateRange
     if (patients.length > 0) {
       autoTable(doc, {
         ...createTableOptions(currentY),
+        ...getTableBaseStyles(),
         head: [['Patient Name', 'MRN', 'Department', 'Doctor', 'Admission Date', 'Stay Duration']],
         body: patients.map(patient => {
           const admission = patient.admissions?.[0];
@@ -183,7 +209,7 @@ export const exportLongStayReport = async (patients: any[], options: { dateRange
             patient.mrn,
             admission.department,
             admission.admitting_doctor?.name || 'Not assigned',
-            format(new Date(admission.admission_date), 'dd/MM/yyyy'),
+            formatDate(admission.admission_date),
             `${stayDuration} days`
           ];
         })

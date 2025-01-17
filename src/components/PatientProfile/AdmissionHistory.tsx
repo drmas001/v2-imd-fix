@@ -6,7 +6,7 @@ import { isLongStay } from '../../utils/stayCalculator';
 import SafetyBadge from './SafetyBadge';
 import LongStayBadge from '../LongStay/LongStayBadge';
 import DoctorDisplay from '../DoctorDisplay';
-import type { Admission } from '../../types/admission';
+import type { Patient } from '../../types/patient';
 
 const AdmissionHistory: React.FC = () => {
   const { selectedPatient } = usePatientStore();
@@ -30,9 +30,9 @@ const AdmissionHistory: React.FC = () => {
         {selectedPatient.admissions?.length === 0 ? (
           <p className="text-center text-gray-500">No admission history available</p>
         ) : (
-          selectedPatient.admissions?.map((admission: Admission) => (
+          selectedPatient.admissions?.map((admission, index) => (
             <div
-              key={admission.id}
+              key={index}
               className="flex items-start space-x-3 p-3 rounded-lg hover:bg-gray-50"
             >
               <Calendar className="h-5 w-5 text-gray-400 mt-0.5" />
@@ -52,7 +52,7 @@ const AdmissionHistory: React.FC = () => {
                       {admission.status}
                     </span>
                     {admission.safety_type && (
-                      <SafetyBadge type={admission.safety_type} />
+                      <SafetyBadge type={admission.safety_type as 'emergency' | 'observation' | 'short-stay'} />
                     )}
                     {isLongStay(admission.admission_date) && (
                       <LongStayBadge 
@@ -66,25 +66,19 @@ const AdmissionHistory: React.FC = () => {
                   Admitted: {formatDate(admission.admission_date)}
                 </p>
                 <p className="text-sm text-gray-600">{admission.department}</p>
-                <div className="mt-2">
-                  <DoctorDisplay 
-                    doctor={admission.admitting_doctor}
-                    label="Admitting Doctor"
-                  />
-                </div>
+                {admission.admitting_doctor && (
+                  <div className="mt-2">
+                    <DoctorDisplay 
+                      doctor={admission.admitting_doctor}
+                      label="Admitting Doctor"
+                    />
+                  </div>
+                )}
                 {admission.discharge_date && (
                   <div className="mt-2 pt-2 border-t border-gray-100">
                     <p className="text-sm text-gray-600">
                       Discharged: {formatDate(admission.discharge_date)}
                     </p>
-                    {admission.discharge_doctor && (
-                      <div className="mt-2">
-                        <DoctorDisplay 
-                          doctor={admission.discharge_doctor}
-                          label="Discharge Doctor"
-                        />
-                      </div>
-                    )}
                   </div>
                 )}
               </div>

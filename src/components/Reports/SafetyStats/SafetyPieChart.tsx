@@ -32,10 +32,10 @@ const CustomLegend: React.FC<{ value: string }> = ({ value }) => (
 
 const SafetyPieChart: React.FC<SafetyPieChartProps> = ({ data }) => {
   return (
-    <div>
+    <div id="safety-stats-chart">
       <h3 className="text-sm font-medium text-gray-700 mb-4">Distribution by Type</h3>
       <div className="h-[300px]">
-        <ResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer width="100%" height="100%" id="safety-stats-chart">
           <PieChart>
             <Pie
               data={data}

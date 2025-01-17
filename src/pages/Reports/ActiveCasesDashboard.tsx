@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   useReactTable,
   getCoreRowModel,
@@ -20,8 +20,6 @@ import type { Appointment } from '../../types/appointment';
 import { PDFDocument } from '../../utils/pdf/core/PDFDocument';
 import { PDFTable } from '../../utils/pdf/core/PDFTable';
 
-const REFRESH_INTERVAL = 30000; // 30 seconds
-
 const ActiveCasesDashboard: React.FC = () => {
   const { currentUser } = useUserStore();
   const { patients, fetchPatients } = usePatientStore();
@@ -33,51 +31,41 @@ const ActiveCasesDashboard: React.FC = () => {
   const [globalFilter, setGlobalFilter] = useState('');
   const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
 
+  const fetchData = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      await Promise.all([
+        fetchPatients(),
+        fetchConsultations(),
+        fetchAppointments(),
+      ]);
+      setLastUpdate(new Date());
+    } catch (error) {
+      setError('Failed to fetch data. Please try again.');
+      console.error('Error fetching data:', error);
+    } finally {
+      setLoading(false);
+
+      // Console logs
+      console.log('Fetched patients:', patients);
+      console.log('Fetched consultations:', consultations);
+      console.log('Fetched appointments:', appointments);
+      console.log('Current user:', currentUser);
+    }
+  }, [fetchPatients, fetchConsultations, fetchAppointments]);
+
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        await Promise.all([
-          fetchPatients(),
-          fetchConsultations(),
-          fetchAppointments(),
-        ]);
-        setLastUpdate(new Date());
-      } catch (error) {
-        setError('Failed to fetch data. Please try again.');
-        console.error('Error fetching data:', error);
-      } finally {
-        setLoading(false);
-
-        // Add console logs here
-        console.log('Fetched patients:', patients);
-        console.log('Fetched consultations:', consultations);
-        console.log('Fetched appointments:', appointments);
-        console.log('Current user:', currentUser);
-      }
-    };
-
     fetchData();
-    const interval = setInterval(fetchData, REFRESH_INTERVAL);
-    return () => clearInterval(interval);
-  }, [
-    fetchPatients,
-    fetchConsultations,
-    fetchAppointments,
-    patients,
-    consultations,
-    appointments,
-    currentUser,
-  ]);
+  }, []);
 
-  // Adjusted filterByDepartment function
   const filterByDepartment = <T extends {
     department?: string;
     consultation_specialty?: string;
     specialty?: string;
   }>(data: T[]): T[] => {
-    if (!currentUser) return data; // Ensure data is not filtered out when currentUser is undefined
+    if (!currentUser) return data;
     if (currentUser.role === 'administrator') return data;
 
     return data.filter(
@@ -88,7 +76,6 @@ const ActiveCasesDashboard: React.FC = () => {
     );
   };
 
-  // Temporarily remove department filtering for testing
   const activePatients = patients.filter((patient: Patient) => {
     const latestAdmission = patient.admissions?.[0];
     return latestAdmission && latestAdmission.status === 'active';
@@ -275,6 +262,13 @@ const ActiveCasesDashboard: React.FC = () => {
           >
             <Download className="h-4 w-4" />
             <span>Export PDF</span>
+          </button>
+          <button
+            onClick={fetchData}
+            className="flex items-center space-x-2 px-4 py-2 bg-gray-200 text-gray-800 rounded-lg hover:bg-gray-300 transition-colors"
+          >
+            <RefreshCw className="h-4 w-4" />
+            <span>Refresh Data</span>
           </button>
         </div>
       </div>

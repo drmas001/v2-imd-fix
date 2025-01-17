@@ -35,7 +35,7 @@ export interface Database {
       };
       patients: {
         Row: {
-          id: number;
+          id: string;
           mrn: string;
           name: string;
           date_of_birth: string;
@@ -44,7 +44,7 @@ export interface Database {
           updated_at: string;
         };
         Insert: {
-          id?: number;
+          id?: string;
           mrn: string;
           name: string;
           date_of_birth: string;
@@ -53,7 +53,7 @@ export interface Database {
           updated_at?: string;
         };
         Update: {
-          id?: number;
+          id?: string;
           mrn?: string;
           name?: string;
           date_of_birth?: string;
@@ -64,8 +64,8 @@ export interface Database {
       };
       admissions: {
         Row: {
-          id: number;
-          patient_id: number;
+          id: string;
+          patient_id: string;
           admitting_doctor_id: number | null;
           discharge_doctor_id: number | null;
           admission_date: string;
@@ -85,8 +85,8 @@ export interface Database {
           updated_at: string;
         };
         Insert: {
-          id?: number;
-          patient_id: number;
+          id?: string;
+          patient_id: string;
           admitting_doctor_id?: number | null;
           discharge_doctor_id?: number | null;
           admission_date: string;
@@ -106,8 +106,8 @@ export interface Database {
           updated_at?: string;
         };
         Update: {
-          id?: number;
-          patient_id?: number;
+          id?: string;
+          patient_id?: string;
           admitting_doctor_id?: number | null;
           discharge_doctor_id?: number | null;
           admission_date?: string;
@@ -154,6 +154,21 @@ export interface Database {
           content?: string;
           created_at?: string;
           updated_at?: string;
+        };
+      };
+      departments: {
+        Row: {
+          id: string;
+          name: string;
+          created_at: string;
+          updated_at: string;
+        };
+      };
+      consultations: {
+        Row: {
+          id: string;
+          status: string;
+          consultation_specialty: string;
         };
       };
     };

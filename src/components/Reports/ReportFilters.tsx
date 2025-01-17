@@ -7,16 +7,16 @@ interface ReportFiltersProps {
 }
 
 const specialties = [
-  'Internal Medicine',
-  'Pulmonology',
-  'Neurology',
-  'Gastroenterology',
-  'Rheumatology',
-  'Endocrinology',
-  'Hematology',
-  'Infectious Disease',
-  'Thrombosis Medicine',
-  'Immunology & Allergy'
+  { value: 'Internal Medicine', label: 'Internal Medicine' },
+  { value: 'Pulmonology', label: 'Pulmonology' },
+  { value: 'Neurology', label: 'Neurology' },
+  { value: 'Gastroenterology', label: 'Gastroenterology' },
+  { value: 'Rheumatology', label: 'Rheumatology' },
+  { value: 'Endocrinology', label: 'Endocrinology' },
+  { value: 'Hematology', label: 'Hematology' },
+  { value: 'Infectious Disease', label: 'Infectious Disease' },
+  { value: 'Thrombosis Medicine', label: 'Thrombosis Medicine' },
+  { value: 'Immunology & Allergy', label: 'Immunology & Allergy' }
 ];
 
 const ReportFilters: React.FC<ReportFiltersProps> = ({ onFilterChange }) => {
@@ -179,7 +179,7 @@ const ReportFilters: React.FC<ReportFiltersProps> = ({ onFilterChange }) => {
           >
             <option value="all">All Specialties</option>
             {specialties.map(specialty => (
-              <option key={specialty} value={specialty}>{specialty}</option>
+              <option key={specialty.value} value={specialty.value}>{specialty.label}</option>
             ))}
           </select>
         </div>

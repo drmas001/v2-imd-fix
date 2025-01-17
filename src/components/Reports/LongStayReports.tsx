@@ -208,7 +208,7 @@ const LongStayReports: React.FC = () => {
                             showDuration={true}
                           />
                           {admission.safety_type && (
-                            <SafetyBadge type={admission.safety_type} />
+                            <SafetyBadge type={admission.safety_type as 'emergency' | 'observation' | 'short-stay'} />
                           )}
                           <button
                             onClick={() => {
@@ -246,7 +246,13 @@ const LongStayReports: React.FC = () => {
 
                         <div className="mt-4">
                           <DoctorDisplay 
-                            doctor={admission.admitting_doctor}
+                            doctor={admission.admitting_doctor ? {
+                              id: 0,
+                              name: admission.admitting_doctor.name,
+                              medical_code: '',
+                              role: 'doctor' as const,
+                              department: admission.department || ''
+                            } : null}
                             showIcon={true}
                             label="Attending Doctor"
                           />

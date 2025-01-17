@@ -32,7 +32,7 @@ const ComparisonTable: React.FC<ComparisonTableProps> = ({
       identifier: patient.mrn,
       department: patient.department || '',
       status: patient.admissions?.[0]?.status || '',
-      details: patient.diagnosis || ''
+      details: patient.admissions?.[0]?.diagnosis || ''
     })),
     ...consultations.map(consultation => ({
       type: 'consultation',

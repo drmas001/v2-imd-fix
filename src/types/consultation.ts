@@ -1,37 +1,23 @@
 export interface Consultation {
   id: number;
+  consultation_date: string;
+  created_at: string;
+  status: string;
   patient_id: number;
-  mrn: string;
+  doctor_id: number;
   patient_name: string;
+  mrn: string;
+  consultation_specialty: string;
+  urgency: string;
+  doctor_name: string;
   age: number;
-  gender: 'male' | 'female';
+  gender: string;
   requesting_department: string;
   patient_location: string;
-  consultation_specialty: string;
-  shift_type: 'morning' | 'evening' | 'night';
-  urgency: 'routine' | 'urgent' | 'emergency';
+  shift_type: string;
   reason: string;
-  status: 'active' | 'completed' | 'cancelled';
-  doctor_id?: number;
-  doctor_name?: string;
-  created_at: string;
   updated_at: string;
+  completion_note?: string;
   completed_at?: string;
   completed_by?: number;
-  completion_note?: string;
-  response_time?: number;
-  doctor?: {
-    id: number;
-    name: string;
-    medical_code: string;
-    role: 'doctor' | 'nurse' | 'administrator';
-    department: string;
-  };
-  completed_by_user?: {
-    id: number;
-    name: string;
-    medical_code: string;
-    role: 'doctor' | 'nurse' | 'administrator';
-    department: string;
-  };
 }

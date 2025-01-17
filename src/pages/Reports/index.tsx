@@ -18,7 +18,6 @@ const Reports: React.FC = () => {
         <TabsList className="bg-white border border-gray-200 rounded-lg p-1">
           <TabsTrigger value="active-cases">Active Cases</TabsTrigger>
           <TabsTrigger value="daily">Daily Reports</TabsTrigger>
-          <TabsTrigger value="departments">Department Stats</TabsTrigger>
           <TabsTrigger value="long-stay">Long Stay Reports</TabsTrigger>
           {isAdmin && <TabsTrigger value="admin">Admin Reports</TabsTrigger>}
         </TabsList>
@@ -32,16 +31,6 @@ const Reports: React.FC = () => {
             <DailyReports />
           </TabsContent>
 
-          <TabsContent value="departments">
-            <DepartmentStats 
-              dateFilter={{
-                startDate: new Date().toISOString().split('T')[0],
-                endDate: new Date().toISOString().split('T')[0],
-                period: 'daily'
-              }}
-            />
-          </TabsContent>
-
           <TabsContent value="long-stay">
             <LongStayReports />
           </TabsContent>
@@ -51,6 +40,10 @@ const Reports: React.FC = () => {
               <AdminReports />
             </TabsContent>
           )}
+
+          <TabsContent value="departments">
+            <div>Department statistics are currently unavailable.</div>
+          </TabsContent>
         </div>
       </Tabs>
     </div>

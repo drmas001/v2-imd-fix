@@ -150,32 +150,35 @@ export const usePatientStore = create<PatientStore>((set, get) => ({
 
         if (existingPatient) {
           existingPatient.admissions = existingPatient.admissions || [];
-          existingPatient.admissions.push(admissionData);
-          existingPatient.admissions.sort((a, b) => 
-            new Date(b.admission_date).getTime() - new Date(a.admission_date).getTime()
-          );
+          existingPatient.admissions.push({
+            ...admissionData,
+            discharge_date: admissionData.discharge_date || undefined,
+            safety_type: admissionData.safety_type || undefined
+          });
 
           const activeAdmission = existingPatient.admissions.find(a => a.status === 'active');
           if (activeAdmission) {
-            existingPatient.department = activeAdmission.department;
-            existingPatient.diagnosis = activeAdmission.diagnosis;
             existingPatient.admission_date = activeAdmission.admission_date;
+            existingPatient.department = activeAdmission.department;
             existingPatient.doctor_name = activeAdmission.admitting_doctor?.name;
-            existingPatient.doctor = activeAdmission.admitting_doctor;
           }
         } else {
           const patient: Patient = {
-            id: admission.patients.id,
+            id: patientId,
+            full_name: admission.patients.name,
+            created_at: new Date().toISOString(),
             mrn: admission.patients.mrn,
             name: admission.patients.name,
-            gender: admission.patients.gender,
-            date_of_birth: admission.patients.date_of_birth,
-            admissions: [admissionData],
-            department: admission.department,
-            diagnosis: admission.diagnosis,
             admission_date: admission.admission_date,
+            department: admission.department,
             doctor_name: admission.admitting_doctor?.name,
-            doctor: admission.admitting_doctor
+            date_of_birth: admission.patients.date_of_birth,
+            gender: admission.patients.gender,
+            admissions: [{
+              ...admissionData,
+              discharge_date: admissionData.discharge_date || undefined,
+              safety_type: admissionData.safety_type || undefined
+            }]
           };
           patientsMap.set(patientId, patient);
         }

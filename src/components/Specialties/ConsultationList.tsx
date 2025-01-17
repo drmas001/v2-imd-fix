@@ -18,11 +18,19 @@ const ConsultationList: React.FC<ConsultationListProps> = ({ consultations, onPa
     const dayOfWeek = admissionDate.getDay();
     const isWeekend = dayOfWeek === 5 || dayOfWeek === 6; // Friday or Saturday
 
+    const doctor = consultation.doctor_id ? {
+      id: consultation.doctor_id,
+      name: consultation.doctor_name,
+      medical_code: '',
+      role: 'doctor' as const,
+      department: consultation.requesting_department
+    } : null;
+
     const admission = {
       id: consultation.id,
       patient_id: consultation.patient_id,
       admission_date: consultation.created_at,
-      discharge_date: null,
+      discharge_date: undefined,
       department: consultation.consultation_specialty,
       diagnosis: consultation.reason,
       status: 'active' as const,
@@ -30,20 +38,21 @@ const ConsultationList: React.FC<ConsultationListProps> = ({ consultations, onPa
       shift_type: isWeekend ? 'weekend_morning' as const : 'morning' as const,
       is_weekend: isWeekend,
       admitting_doctor_id: consultation.doctor_id || null,
-      admitting_doctor: consultation.doctor || null
+      safety_type: 'observation' as const,
+      admitting_doctor: doctor
     };
 
     const patientData: Patient = {
       id: consultation.patient_id,
       mrn: consultation.mrn,
       name: consultation.patient_name,
+      full_name: consultation.patient_name,
+      created_at: consultation.created_at,
       gender: consultation.gender,
       date_of_birth: new Date(new Date().getFullYear() - consultation.age, 0, 1).toISOString(),
       department: consultation.consultation_specialty,
-      doctor_name: consultation.doctor?.name,
-      diagnosis: consultation.reason,
+      doctor_name: consultation.doctor_name,
       admission_date: consultation.created_at,
-      doctor: consultation.doctor,
       admissions: [admission]
     };
 
@@ -80,7 +89,7 @@ const ConsultationList: React.FC<ConsultationListProps> = ({ consultations, onPa
                 </div>
                 <div className="flex items-center text-sm text-gray-500">
                   <User className="h-4 w-4 mr-1" />
-                  {consultation.doctor?.name || 'Pending Assignment'}
+                  {consultation.doctor_name || 'Pending Assignment'}
                 </div>
               </div>
               <p className="text-sm text-gray-600 mt-2">

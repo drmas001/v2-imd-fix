@@ -1,70 +1,26 @@
-export interface ReportFilters {
-  dateFrom: string;
-  dateTo: string;
-  reportType: 'daily' | 'custom';
-  specialty: string;
-  searchQuery: string;
+import type { Patient } from './patient';
+import type { Consultation } from './consultation';
+
+export interface DateFilter {
+  startDate: string;
+  endDate: string;
+  period: 'today' | 'week' | 'month' | 'custom';
 }
 
 export interface ExportData {
+  patients: Patient[];
+  consultations: Consultation[];
+  dateFilter: DateFilter;
+  appointments: any[];
+  generatedAt: string;
+  generatedBy: string;
   title?: string;
-  patients: Array<{
-    id: number;
-    mrn: string;
-    name: string;
-    admission_date?: string;
-    department?: string;
-    doctor_name?: string | null;
-    admissions?: Array<{
-      status: string;
-      admission_date: string;
-      discharge_date?: string | null;
-      department: string;
-      diagnosis: string;
-      visit_number: number;
-      safety_type?: string;
-      admitting_doctor?: {
-        name: string;
-      } | null;
-    }>;
-  }>;
-  consultations: Array<{
-    id: number;
-    patient_name: string;
-    mrn: string;
-    consultation_specialty: string;
-    created_at: string;
-    urgency: string;
-    status?: string;
-    doctor_name?: string;
-  }>;
-  appointments: Array<{
-    id: number;
-    patientName: string;
-    medicalNumber: string;
-    specialty: string;
-    appointmentType: string;
-    createdAt: string;
-    status: string;
-  }>;
-  dateFilter: {
-    startDate: string;
-    endDate: string;
-    period: string;
-  };
 }
 
-export interface Consultation {
-  id: number;
-  patient_id: number;
-  patient_name: string;
-  mrn: string;
-  consultation_specialty: string;
-  created_at: string;
-  urgency: string;
-  status: string;
-  doctor_name: string;
-  age: number;
-  gender: string;
-  requesting_department: string;
+export interface ReportFilters {
+  dateFrom: string;
+  dateTo: string;
+  reportType: 'daily' | 'weekly' | 'monthly' | 'custom';
+  specialty: string;
+  searchQuery: string;
 }

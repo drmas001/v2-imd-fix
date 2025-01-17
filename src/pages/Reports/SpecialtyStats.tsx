@@ -1,11 +1,7 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import { Activity } from 'lucide-react';
-
-interface SpecialtyStatsProps {
-  patients: any[];
-  consultations: any[];
-}
+import { supabase } from '../../lib/supabase';
 
 const specialties = [
   'Internal Medicine',
@@ -20,36 +16,66 @@ const specialties = [
   'Immunology & Allergy'
 ];
 
-const SpecialtyStats: React.FC<SpecialtyStatsProps> = ({ patients, consultations }) => {
-  const getSpecialtyData = () => {
-    return specialties.map(specialty => {
-      // Count active patients in this specialty
-      const activePatients = patients.filter(patient => 
-        patient.admissions?.some((admission: any) => 
-          admission.department === specialty && 
-          admission.status === 'active'
-        )
-      ).length;
+const SpecialtyStats: React.FC = () => {
+  const [data, setData] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
-      // Count active consultations for this specialty
-      const activeConsultations = consultations.filter(consultation =>
-        consultation.consultation_specialty === specialty &&
-        consultation.status === 'active'
-      ).length;
+  useEffect(() => {
+    const fetchSpecialtyData = async () => {
+      try {
+        const [
+          { data: patientsData, error: patientsError },
+          { data: consultationsData, error: consultationsError }
+        ] = await Promise.all([
+          supabase
+            .from('patients')
+            .select('*, admissions(*)')
+            .eq('status', 'active'),
+          supabase
+            .from('consultations')
+            .select('*')
+            .eq('status', 'active')
+        ]);
 
-      // Calculate occupancy rate (mock data - replace with actual calculation)
-      const occupancyRate = Math.min(100, Math.round((activePatients / (activePatients + 5)) * 100));
+        if (patientsError) throw patientsError;
+        if (consultationsError) throw consultationsError;
 
-      return {
-        name: specialty,
-        patients: activePatients,
-        consultations: activeConsultations,
-        occupancyRate
-      };
-    });
-  };
+        const specialtyData = specialties.map(specialty => {
+          const activePatients = patientsData.filter(patient => 
+            patient.admissions?.some((admission: any) => 
+              admission.department === specialty && 
+              admission.status === 'active'
+            )
+          ).length;
 
-  const data = getSpecialtyData();
+          const activeConsultations = consultationsData.filter(consultation =>
+            consultation.consultation_specialty === specialty
+          ).length;
+
+          const occupancyRate = Math.min(100, Math.round((activePatients / (activePatients + 5)) * 100));
+
+          return {
+            name: specialty,
+            patients: activePatients,
+            consultations: activeConsultations,
+            occupancyRate
+          };
+        });
+
+        setData(specialtyData);
+      } catch (error) {
+        console.error('Error fetching specialty data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchSpecialtyData();
+  }, []);
+
+  if (loading) {
+    return <div>Loading specialty statistics...</div>;
+  }
 
   return (
     <div className="bg-white rounded-lg border border-gray-200 p-4">

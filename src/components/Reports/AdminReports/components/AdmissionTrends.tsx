@@ -67,7 +67,7 @@ const AdmissionTrends: React.FC<AdmissionTrendsProps> = ({ dateFilter }) => {
   const totalReadmissions = data.reduce((sum, day) => sum + day.readmissions, 0);
 
   return (
-    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+    <div id="admission-trends-chart" className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
       <h2 className="text-lg font-semibold text-gray-900 mb-6">Admission Trends</h2>
       
       <div className="h-[400px]">

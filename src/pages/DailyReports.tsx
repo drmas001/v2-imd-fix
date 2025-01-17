@@ -8,7 +8,7 @@ import ReportFilters from '../components/Reports/ReportFilters';
 import ReportTable from '../components/Reports/ReportTable';
 import ReportSummary from '../components/Reports/ReportSummary';
 import type { ReportFilters as ReportFiltersType } from '../types/report';
-import type { ExportData, Consultation } from '../types/report';
+import type { ExportData,} from '../types/report';
 import { PDFDocument } from '../utils/pdf/core/PDFDocument';
 import { PDFTable } from '../utils/pdf/core/PDFTable';
 
@@ -22,10 +22,11 @@ const DailyReports: React.FC = () => {
   const [loadingError, setLoadingError] = useState<string | null>(null);
   const [lastRefresh, setLastRefresh] = useState<Date>(new Date());
 
-  const today = new Date().toISOString().split('T')[0];
+  const today = new Date();
+  const yesterday = new Date(today.getTime() - (24 * 60 * 60 * 1000));
   const [filters, setFilters] = useState<ReportFiltersType>({
-    dateFrom: today,
-    dateTo: today,
+    dateFrom: yesterday.toISOString().split('T')[0],
+    dateTo: today.toISOString().split('T')[0],
     reportType: 'daily',
     specialty: 'all',
     searchQuery: ''
@@ -56,19 +57,63 @@ const DailyReports: React.FC = () => {
   }, [fetchPatients, fetchConsultations, fetchAppointments]);
 
   const getFilteredData = () => {
-    const dateFrom = new Date(filters.dateFrom);
-    const dateTo = new Date(filters.dateTo);
-    dateTo.setHours(23, 59, 59, 999);
+    let dateFrom = new Date(filters.dateFrom);
+    let dateTo = new Date(filters.dateTo);
+
+    // If it's a daily report, set the date range to last 24 hours
+    if (filters.reportType === 'daily') {
+      dateTo = new Date(); // Current time
+      dateFrom = new Date(dateTo.getTime() - (24 * 60 * 60 * 1000)); // 24 hours ago
+    } else {
+      // For other report types, use the end of day
+      dateTo.setHours(23, 59, 59, 999);
+    }
+
+    const filteredConsultations = consultations.map(consultation => ({
+      id: consultation.id,
+      consultation_date: consultation.created_at,
+      created_at: consultation.created_at,
+      status: consultation.status,
+      patient_id: consultation.patient_id,
+      doctor_id: consultation.doctor_id || 0,
+      patient_name: consultation.patient_name,
+      mrn: consultation.mrn,
+      consultation_specialty: consultation.consultation_specialty,
+      urgency: consultation.urgency,
+      doctor_name: consultation.doctor_name,
+      age: consultation.age,
+      gender: consultation.gender,
+      requesting_department: consultation.requesting_department,
+      patient_location: consultation.patient_location,
+      shift_type: consultation.shift_type,
+      reason: consultation.reason,
+      updated_at: consultation.updated_at
+    })).filter(consultation => {
+      const matchesDate = new Date(consultation.created_at) >= dateFrom &&
+        new Date(consultation.created_at) <= dateTo;
+      
+      const matchesSpecialty = filters.specialty === 'all' || 
+        consultation.consultation_specialty === filters.specialty;
+      
+      const matchesSearch = filters.searchQuery === '' ||
+        consultation.patient_name.toLowerCase().includes(filters.searchQuery.toLowerCase()) ||
+        consultation.mrn.toLowerCase().includes(filters.searchQuery.toLowerCase());
+
+      return matchesDate && matchesSpecialty && matchesSearch;
+    });
 
     const filteredPatients = patients.map(patient => ({
       id: patient.id,
-      mrn: patient.mrn,
+      full_name: patient.name,
       name: patient.name,
+      created_at: new Date().toISOString(),
+      mrn: patient.mrn,
       admission_date: patient.admission_date,
       department: patient.department,
       doctor_name: patient.doctor_name || '',
       date_of_birth: patient.date_of_birth,
       gender: patient.gender,
+      severity: 1,
       admissions: patient.admissions?.map(admission => ({
         status: admission.status,
         admission_date: admission.admission_date,
@@ -96,37 +141,6 @@ const DailyReports: React.FC = () => {
 
       return matchesDate && matchesSpecialty && matchesSearch;
     });
-
-    const filteredConsultations = consultations.filter(consultation => {
-      const matchesDate = new Date(consultation.created_at) >= dateFrom &&
-        new Date(consultation.created_at) <= dateTo;
-      
-      const matchesSpecialty = filters.specialty === 'all' || 
-        consultation.consultation_specialty === filters.specialty;
-      
-      const matchesSearch = filters.searchQuery === '' ||
-        consultation.patient_name.toLowerCase().includes(filters.searchQuery.toLowerCase()) ||
-        consultation.mrn.toLowerCase().includes(filters.searchQuery.toLowerCase());
-
-      return matchesDate && matchesSpecialty && matchesSearch;
-    }).map(consultation => ({
-      id: consultation.id,
-      patient_id: consultation.patient_id,
-      patient_name: consultation.patient_name,
-      mrn: consultation.mrn,
-      consultation_specialty: consultation.consultation_specialty,
-      created_at: consultation.created_at,
-      urgency: consultation.urgency,
-      status: consultation.status,
-      doctor_name: consultation.doctor_name,
-      age: consultation.age,
-      gender: consultation.gender,
-      requesting_department: consultation.requesting_department,
-      patient_location: consultation.patient_location,
-      shift_type: consultation.shift_type,
-      reason: consultation.reason,
-      updated_at: consultation.updated_at,
-    }));
 
     const filteredAppointments = appointments.filter(appointment => {
       const matchesDate = new Date(appointment.createdAt) >= dateFrom &&
@@ -166,12 +180,24 @@ const DailyReports: React.FC = () => {
       dateFilter: {
         startDate: filters.dateFrom,
         endDate: filters.dateTo,
-        period: filters.reportType
-      }
+        period: filters.reportType === 'daily' ? 'today' :
+                filters.reportType === 'weekly' ? 'week' :
+                filters.reportType === 'monthly' ? 'month' : 'custom'
+      },
+      generatedAt: new Date().toISOString(),
+      generatedBy: 'system'
     } as ExportData;
   };
 
   const handleFilterChange = (newFilters: ReportFiltersType) => {
+    // If switching to daily report, set date range to last 24 hours
+    if (newFilters.reportType === 'daily') {
+      const now = new Date();
+      const last24Hours = new Date(now.getTime() - (24 * 60 * 60 * 1000));
+      newFilters.dateTo = now.toISOString().split('T')[0];
+      newFilters.dateFrom = last24Hours.toISOString().split('T')[0];
+    }
+    
     setFilters(newFilters);
     setExportError(null);
   };
@@ -204,15 +230,19 @@ const DailyReports: React.FC = () => {
             cells: [
               { content: 'MRN', styles: { fontStyle: 'bold' } },
               { content: 'Patient Name', styles: { fontStyle: 'bold' } },
-              // Add other headers as needed
+              { content: 'Department', styles: { fontStyle: 'bold' } },
+              { content: 'Assigned Doctor', styles: { fontStyle: 'bold' } },
             ],
           },
         ],
-        body: filteredData.patients.map((patient) => ({
+        body: filteredData.patients.filter(patient => 
+          filters.specialty === 'all' || patient.department === filters.specialty
+        ).map((patient) => ({
           cells: [
             { content: patient.mrn || '' },
             { content: patient.name || '' },
-            // Add other cells as needed
+            { content: patient.department || '' },
+            { content: patient.doctor_name || '' },
           ],
         })),
         startY,

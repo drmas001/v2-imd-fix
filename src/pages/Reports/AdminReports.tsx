@@ -1,42 +1,91 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card, CardHeader, CardTitle, CardContent } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { ExportButton } from '../../components/Reports/ExportButton';
 import { DateRangePicker } from '../../components/ui/DateRangePicker';
-import { usePatientStore } from '../../stores/usePatientStore';
-import { useConsultationStore } from '../../stores/useConsultationStore';
-import DoctorStats from './DoctorStats';
-import SpecialtyStats from './SpecialtyStats';
-import SafetyAdmissionStats from './SafetyStats/SafetyAdmissionStats';
-import DischargeStats from './DischargeStats';
-import OccupancyChart from './OccupancyChart';
-import AdmissionTrends from './AdmissionTrends';
-import ConsultationMetrics from './ConsultationMetrics';
-import LongStayReport from '../../components/LongStay/LongStayReport';
 import { useUserStore } from '../../stores/useUserStore';
 import { AccessDenied } from '../../components/ui/AccessDenied';
 import { PrinterIcon } from '@heroicons/react/24/outline';
+import { supabase } from '../../lib/supabase';
+import { toast } from 'react-hot-toast';
+import { Spinner } from '../../components/ui/Spinner';
+import type { ExportData, DateFilter } from '../../types/report';
+import type { Patient } from '../../types/patient';
+import type { Consultation } from '../../types/consultation';
+import type { Database } from '../../lib/database.types';
+
+import OccupancyChart from './OccupancyChart';
+import AdmissionTrends from './AdmissionTrends';
+import SpecialtyStats from '../../components/Reports/SpecialtyStats';
+import DoctorStats from '../../components/Reports/DoctorStats';
+import ConsultationMetrics from '../../components/Reports/ConsultationMetrics';
+import SafetyAdmissionStats from '../../components/Reports/SafetyAdmissionStats';
+import { DischargeStats } from '../../components/Reports/DischargeStats';
+import LongStayReport from '../../components/Reports/LongStayReport';
 
 const AdminReports: React.FC = () => {
   const { currentUser } = useUserStore();
-  const { patients } = usePatientStore();
-  const { consultations } = useConsultationStore();
-  const [dateFilter, setDateFilter] = useState({
+  const [patients, setPatients] = useState<Patient[]>([]);
+  const [consultations, setConsultations] = useState<Consultation[]>([]);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
+  const [dateFilter, setDateFilter] = useState<DateFilter>({
     startDate: new Date().toISOString().split('T')[0],
     endDate: new Date().toISOString().split('T')[0],
-    period: 'today' as 'today' | 'week' | 'month' | 'custom'
+    period: 'today',
   });
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        setIsLoading(true);
+
+        // Fetch patients with date filtering
+        const { data: patientsData, error: patientsError } = await supabase
+          .from('patients')
+          .select('*, admissions(*)')
+          .gte('created_at', dateFilter.startDate)
+          .lte('created_at', dateFilter.endDate);
+
+        if (patientsError) throw patientsError;
+
+        // Fetch consultations with date filtering
+        const { data: consultationsData, error: consultationsError } = await supabase
+          .from('consultations')
+          .select(`
+            *,
+            patient:patients(id, full_name),
+            doctor:doctors(id, full_name, specialty)
+          `)
+          .gte('consultation_date', dateFilter.startDate)
+          .lte('consultation_date', dateFilter.endDate);
+
+        if (consultationsError) throw consultationsError;
+
+        setPatients(patientsData as Patient[] || []);
+        setConsultations(consultationsData as Consultation[] || []);
+      } catch (error) {
+        console.error('Error fetching data:', error);
+        toast.error('Failed to fetch report data');
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [dateFilter]);
 
   // Check if user has admin access
   if (currentUser?.role !== 'administrator') {
     return <AccessDenied />;
   }
 
-  const exportData = {
+  const exportData: ExportData = {
     patients,
     consultations,
     dateFilter,
-    appointments: []
+    appointments: [], // Include appointments if available
+    generatedAt: new Date().toISOString(),
+    generatedBy: currentUser?.name || 'Unknown',
   };
 
   return (
@@ -64,31 +113,36 @@ const AdminReports: React.FC = () => {
             className="mb-6"
           />
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            <OccupancyChart dateFilter={dateFilter} />
-            <AdmissionTrends dateFilter={dateFilter} />
-          </div>
+          {isLoading ? (
+            <div className="flex justify-center items-center h-64">
+              <Spinner size="lg" />
+            </div>
+          ) : (
+            <>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                <OccupancyChart dateFilter={dateFilter} />
+                <AdmissionTrends dateFilter={dateFilter} />
+              </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-            <SpecialtyStats 
-              patients={patients} 
-              consultations={consultations} 
-            />
-            <DoctorStats dateFilter={dateFilter} />
-          </div>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+                <SpecialtyStats consultations={consultations} />
+                <DoctorStats consultations={consultations} dateFilter={dateFilter} />
+              </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-            <ConsultationMetrics dateFilter={dateFilter} />
-            <SafetyAdmissionStats dateFilter={dateFilter} />
-          </div>
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+                <ConsultationMetrics consultations={consultations} dateFilter={dateFilter} />
+                <SafetyAdmissionStats patients={patients} dateFilter={dateFilter} />
+              </div>
 
-          <div className="mt-6">
-            <DischargeStats dateFilter={dateFilter} />
-          </div>
+              <div className="mt-6">
+                <DischargeStats dateFilter={dateFilter} />
+              </div>
 
-          <div className="mt-6">
-            <LongStayReport dateFilter={dateFilter} />
-          </div>
+              <div className="mt-6">
+                <LongStayReport patients={patients} dateFilter={dateFilter} />
+              </div>
+            </>
+          )}
         </CardContent>
       </Card>
     </div>

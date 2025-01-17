@@ -2,11 +2,11 @@ import React, { useState } from 'react';
 import { Calendar, Download, FileText, Filter, Printer, RefreshCw } from 'lucide-react';
 import { usePatientStore } from '../../stores/usePatientStore';
 import { useConsultationStore } from '../../stores/useConsultationStore';
-import { exportAdminPDF } from '../../utils/adminPdfExport';
+import { exportAdminPDF } from '../../utils/pdf/adminReport';
 import DoctorStats from './DoctorStats';
 import SpecialtyStats from './SpecialtyStats';
 import SafetyAdmissionStats from './SafetyStats/SafetyAdmissionStats';
-import DischargeStats from './DischargeStats';
+import { DischargeStats } from './DischargeStats';
 import OccupancyChart from './OccupancyChart';
 import AdmissionTrends from './AdmissionTrends';
 import ConsultationMetrics from './ConsultationMetrics';
@@ -31,18 +31,18 @@ const AdminReports: React.FC = () => {
 
   const handlePeriodChange = (period: DateFilter['period']) => {
     const today = new Date();
-    let startDate = today;
-    const endDate = today;
+    let startDate = new Date(today);
+    let endDate = new Date(today);
 
     switch (period) {
       case 'week':
-        startDate = new Date(today.setDate(today.getDate() - 7));
+        startDate = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
         break;
       case 'month':
-        startDate = new Date(today.setMonth(today.getMonth() - 1));
+        startDate = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
         break;
       default:
-        startDate = today;
+        break;
     }
 
     setDateFilter({
@@ -64,7 +64,9 @@ const AdminReports: React.FC = () => {
           startDate: dateFilter.startDate,
           endDate: dateFilter.endDate,
           period: dateFilter.period
-        }
+        },
+        generatedAt: new Date().toISOString(),
+        generatedBy: 'Admin User'
       };
       await exportAdminPDF(exportData);
     } catch (error) {
@@ -79,30 +81,50 @@ const AdminReports: React.FC = () => {
     window.print();
   };
 
-  // Filter patients based on date range
+  // Filter patients based on date range and get all admissions
   const filteredPatients = patients.filter(patient => {
-    const admissionDate = patient.admission_date ? new Date(patient.admission_date) : null;
-    if (!admissionDate) return false;
+    // Get all admissions for the patient
+    const admissions = patient.admissions || [];
     
-    return admissionDate >= new Date(dateFilter.startDate) && 
-           admissionDate <= new Date(dateFilter.endDate);
+    return admissions.some(admission => {
+      const admissionDate = new Date(admission.admission_date);
+      return admissionDate >= new Date(dateFilter.startDate) && 
+             admissionDate <= new Date(dateFilter.endDate);
+    });
+  });
+
+  // Get discharged patients specifically for discharge stats
+  const dischargedPatients = patients.filter(patient => {
+    const admissions = patient.admissions || [];
+    return admissions.some(admission => {
+      if (admission.status !== 'discharged' || !admission.discharge_date) {
+        return false;
+      }
+      const dischargeDate = new Date(admission.discharge_date);
+      dischargeDate.setHours(0, 0, 0, 0);
+      
+      const filterStartDate = new Date(dateFilter.startDate);
+      filterStartDate.setHours(0, 0, 0, 0);
+      
+      const filterEndDate = new Date(dateFilter.endDate);
+      filterEndDate.setHours(23, 59, 59, 999);
+      
+      return dischargeDate >= filterStartDate && dischargeDate <= filterEndDate;
+    });
   });
 
   // Calculate statistics
   const totalPatients = filteredPatients.length;
   
   const activePatients = filteredPatients.filter(patient => 
-    patient.admissions?.[0]?.status === 'active' &&
-    new Date(patient.admissions[0].admission_date) >= new Date(dateFilter.startDate) &&
-    new Date(patient.admissions[0].admission_date) <= new Date(dateFilter.endDate)
+    (patient.admissions || []).some(admission =>
+      admission.status === 'active' &&
+      new Date(admission.admission_date) >= new Date(dateFilter.startDate) &&
+      new Date(admission.admission_date) <= new Date(dateFilter.endDate)
+    )
   ).length;
 
-  const dischargedPatients = filteredPatients.filter(patient =>
-    patient.admissions?.[0]?.status === 'discharged' &&
-    patient.admissions[0].discharge_date &&
-    new Date(patient.admissions[0].discharge_date) >= new Date(dateFilter.startDate) &&
-    new Date(patient.admissions[0].discharge_date) <= new Date(dateFilter.endDate)
-  ).length;
+  const dischargedPatientsCount = dischargedPatients.length;
 
   const activeConsultations = consultations.filter(consultation =>
     consultation.status === 'active' &&
@@ -216,7 +238,7 @@ const AdminReports: React.FC = () => {
             </div>
             <div className="bg-yellow-50 p-4 rounded-lg">
               <h3 className="text-sm font-medium text-yellow-900 mb-2">Discharged Patients</h3>
-              <p className="text-2xl font-bold text-yellow-600">{dischargedPatients}</p>
+              <p className="text-2xl font-bold text-yellow-600">{dischargedPatientsCount}</p>
             </div>
             <div className="bg-blue-50 p-4 rounded-lg">
               <h3 className="text-sm font-medium text-blue-900 mb-2">Active Consultations</h3>
@@ -232,15 +254,12 @@ const AdminReports: React.FC = () => {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <SpecialtyStats 
-                patients={filteredPatients} 
-                consultations={consultations} 
-              />
-              <DoctorStats dateFilter={dateFilter} />
+              <SpecialtyStats consultations={consultations} />
+              <DoctorStats consultations={consultations} dateFilter={dateFilter} />
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              <ConsultationMetrics dateFilter={dateFilter} />
+              <ConsultationMetrics consultations={consultations} dateFilter={dateFilter} />
               <SafetyAdmissionStats dateFilter={dateFilter} />
             </div>
 

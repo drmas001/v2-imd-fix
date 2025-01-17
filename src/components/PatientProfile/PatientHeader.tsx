@@ -25,9 +25,7 @@ const PatientHeader: React.FC = () => {
         doctor_name: selectedPatient.doctor_name ?? undefined,
         admissions: selectedPatient.admissions?.map(admission => ({
           ...admission,
-          users: admission.admitting_doctor ? {
-            name: admission.admitting_doctor.name
-          } : undefined
+          users: admission.admitting_doctor ? admission.admitting_doctor : undefined
         }))
       };
       

@@ -46,7 +46,7 @@ const ConsultationMetrics: React.FC<ConsultationMetricsProps> = ({ dateFilter })
     };
 
     filtered.forEach(consultation => {
-      counts[consultation.urgency]++;
+      counts[consultation.urgency as keyof typeof counts]++;
     });
 
     return Object.entries(counts).map(([key, value]) => ({
@@ -64,8 +64,9 @@ const ConsultationMetrics: React.FC<ConsultationMetricsProps> = ({ dateFilter })
     };
 
     filtered.forEach(consultation => {
-      if (consultation.response_time) {
-        times[consultation.urgency].push(consultation.response_time);
+      if (consultation.completed_at && consultation.consultation_date) {
+        const responseTime = new Date(consultation.completed_at).getTime() - new Date(consultation.consultation_date).getTime();
+        times[consultation.urgency].push(responseTime);
       }
     });
 
@@ -116,7 +117,10 @@ const ConsultationMetrics: React.FC<ConsultationMetricsProps> = ({ dateFilter })
             {getResponseTimes().map(({ type, average }) => (
               <div key={type} className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
-                  <div className={`w-3 h-3 rounded-full bg-${COLORS[type]}`} />
+                  <div 
+                    className="w-3 h-3 rounded-full" 
+                    style={{ backgroundColor: COLORS[type as keyof typeof COLORS] }}
+                  />
                   <span className="text-sm text-gray-600 capitalize">{type}</span>
                 </div>
                 <span className="text-sm font-medium text-gray-900">

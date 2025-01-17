@@ -17,15 +17,13 @@ export const exportAdminPDF = async (data: ExportData): Promise<void> => {
       const logoResponse = await fetch(ASSETS.LOGO.PDF);
       if (logoResponse.ok) {
         const logoBlob = await logoResponse.blob();
-        const reader = new FileReader();
-        reader.readAsDataURL(logoBlob);
-        await new Promise((resolve) => {
-          reader.onloadend = () => {
-            const logoData = reader.result as string;
-            doc.addImage(logoData, 'PNG', 15, currentY, 30, 30);
-            resolve(null);
-          };
+        const logoData = await new Promise<string>((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.onerror = reject;
+          reader.readAsDataURL(logoBlob);
         });
+        doc.addImage(logoData, 'PNG', 15, currentY, 30, 30);
       }
     } catch (error) {
       console.error('Error adding logo to PDF:', error);
@@ -68,6 +66,40 @@ export const exportAdminPDF = async (data: ExportData): Promise<void> => {
       headStyles: { fillColor: PDF_CONSTANTS.COLORS.PRIMARY as [number, number, number] },
       margin: { left: 14 },
       tableWidth: 100
+    });
+
+    // Add department statistics
+    currentY = (doc as any).lastAutoTable.finalY + 15;
+    doc.setFontSize(14);
+    doc.text('Department Statistics', 14, currentY);
+    currentY += 10;
+
+    const departmentStats = data.patients.reduce((acc, patient) => {
+      const dept = patient.department || 'Unassigned';
+      if (!acc[dept]) {
+        acc[dept] = { total: 0, active: 0 };
+      }
+      acc[dept].total++;
+      if (patient.admissions?.some(a => a.status === 'active')) {
+        acc[dept].active++;
+      }
+      return acc;
+    }, {} as Record<string, { total: number; active: number }>);
+
+    const departmentData = Object.entries(departmentStats).map(([dept, stats]) => [
+      dept,
+      stats.total.toString(),
+      stats.active.toString(),
+      `${Math.round((stats.active / stats.total) * 100)}%`
+    ]);
+
+    autoTable(doc, {
+      startY: currentY,
+      head: [['Department', 'Total Patients', 'Active Patients', 'Occupancy Rate']],
+      body: departmentData,
+      styles: { fontSize: 10 },
+      headStyles: { fillColor: PDF_CONSTANTS.COLORS.PRIMARY as [number, number, number] },
+      margin: { left: 14 }
     });
 
     // Add footer with page numbers

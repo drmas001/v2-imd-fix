@@ -49,7 +49,7 @@ const OccupancyChart: React.FC<OccupancyChartProps> = ({ dateFilter }) => {
       <h2 className="text-lg font-semibold text-gray-900 mb-6">Occupancy Trend</h2>
       
       <div className="h-[400px]">
-        <ResponsiveContainer width="100%" height="100%">
+        <ResponsiveContainer width="100%" height="100%" id="occupancy-chart">
           <LineChart
             data={getOccupancyData()}
             margin={{ top: 20, right: 30, left: 20, bottom: 20 }}

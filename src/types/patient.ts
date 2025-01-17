@@ -1,27 +1,25 @@
 export interface Patient {
   id: number;
+  full_name: string;
+  created_at: string;
   mrn: string;
   name: string;
+  admission_date: string;
+  department: string;
+  doctor_name?: string;
   date_of_birth: string;
-  gender: 'male' | 'female';
-  department?: string;
-  doctor_name?: string | null;
-  diagnosis?: string;
-  admission_date?: string;
-  admissions?: Array<{
+  gender: string;
+  admissions?: {
     id: number;
-    patient_id: number;
+    status: string;
     admission_date: string;
-    discharge_date: string | null;
+    discharge_date?: string;
+    visit_number: number;
     department: string;
     diagnosis: string;
-    status: 'active' | 'discharged' | 'transferred';
-    visit_number: number;
-    safety_type?: 'emergency' | 'observation' | 'short-stay';
+    safety_type: 'emergency' | 'observation' | 'short-stay' | undefined;
     shift_type: 'morning' | 'evening' | 'night' | 'weekend_morning' | 'weekend_night';
     is_weekend: boolean;
-    admitting_doctor_id: number | null;
-    discharge_doctor_id?: number | null;
     admitting_doctor?: {
       id: number;
       name: string;
@@ -29,19 +27,6 @@ export interface Patient {
       role: 'doctor' | 'nurse' | 'administrator';
       department: string;
     } | null;
-    discharge_doctor?: {
-      id: number;
-      name: string;
-      medical_code: string;
-      role: 'doctor' | 'nurse' | 'administrator';
-      department: string;
-    } | null;
-  }>;
-  doctor?: {
-    id: number;
-    name: string;
-    medical_code: string;
-    role: 'doctor' | 'nurse' | 'administrator';
-    department: string;
-  } | null;
+  }[];
+  // Add other patient properties as per your database schema
 }
