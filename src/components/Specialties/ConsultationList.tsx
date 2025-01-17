@@ -20,7 +20,7 @@ const ConsultationList: React.FC<ConsultationListProps> = ({ consultations, onPa
 
     const doctor = consultation.doctor_id ? {
       id: consultation.doctor_id,
-      name: consultation.doctor_name,
+      name: consultation.doctor?.name || '',
       medical_code: '',
       role: 'doctor' as const,
       department: consultation.requesting_department
@@ -51,7 +51,7 @@ const ConsultationList: React.FC<ConsultationListProps> = ({ consultations, onPa
       gender: consultation.gender,
       date_of_birth: new Date(new Date().getFullYear() - consultation.age, 0, 1).toISOString(),
       department: consultation.consultation_specialty,
-      doctor_name: consultation.doctor_name,
+      doctor_name: consultation.doctor?.name || '',
       admission_date: consultation.created_at,
       admissions: [admission]
     };
@@ -89,7 +89,7 @@ const ConsultationList: React.FC<ConsultationListProps> = ({ consultations, onPa
                 </div>
                 <div className="flex items-center text-sm text-gray-500">
                   <User className="h-4 w-4 mr-1" />
-                  {consultation.doctor_name || 'Pending Assignment'}
+                  {consultation.doctor?.name || 'Pending Assignment'}
                 </div>
               </div>
               <p className="text-sm text-gray-600 mt-2">

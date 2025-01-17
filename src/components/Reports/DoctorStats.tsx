@@ -34,11 +34,14 @@ const DoctorStats: React.FC<DoctorStatsProps> = ({ consultations, dateFilter }) 
 
     // Group consultations by doctor
     const doctorStats = filteredConsultations.reduce((acc, consultation) => {
-      const { doctor_id, doctor_name, status, urgency, created_at, updated_at } = consultation;
+      const { doctor_id, status, urgency, created_at, updated_at } = consultation;
+      const doctorName = consultation.doctor?.name || 'Unknown';
       
+      if (!doctor_id) return acc;
+
       if (!acc[doctor_id]) {
         acc[doctor_id] = {
-          doctorName: doctor_name,
+          doctorName,
           totalConsultations: 0,
           completedConsultations: 0,
           emergencyCount: 0,

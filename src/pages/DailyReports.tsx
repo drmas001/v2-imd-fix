@@ -80,7 +80,7 @@ const DailyReports: React.FC = () => {
       mrn: consultation.mrn,
       consultation_specialty: consultation.consultation_specialty,
       urgency: consultation.urgency,
-      doctor_name: consultation.doctor_name,
+      doctor_name: consultation.doctor?.name || '',
       age: consultation.age,
       gender: consultation.gender,
       requesting_department: consultation.requesting_department,

@@ -86,7 +86,7 @@ export const exportDailyReport = async (data: ExportData): Promise<void> => {
           consultation.patient_name,
           consultation.mrn,
           consultation.consultation_specialty,
-          consultation.doctor_name || 'Pending',
+          consultation.doctor?.name || 'Pending',
           formatDate(consultation.created_at, true),
           consultation.urgency
         ])

@@ -88,7 +88,7 @@ export const exportToPDF = ({ patients, consultations, appointments, activeTab, 
             consultation.mrn,
             consultation.consultation_specialty,
             format(new Date(consultation.created_at), 'dd/MM/yyyy'),
-            consultation.doctor_name || 'Pending Assignment',
+            consultation.doctor?.name || 'Pending Assignment',
             consultation.urgency
           ]),
           styles: { fontSize: 10 },

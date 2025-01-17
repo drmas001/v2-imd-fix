@@ -91,7 +91,7 @@ const ReportTable: React.FC<ReportTableProps> = ({ data }) => {
                       {consultation.consultation_specialty}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                      {consultation.doctor_name || 'Pending Assignment'}
+                      {consultation.doctor?.name || 'Pending Assignment'}
                     </td>
                     <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                       {formatDate(consultation.created_at)}

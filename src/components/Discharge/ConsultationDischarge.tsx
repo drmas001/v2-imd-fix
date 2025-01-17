@@ -66,9 +66,9 @@ const ConsultationDischarge: React.FC<ConsultationDischargeProps> = ({ consultat
             <Stethoscope className="h-5 w-5 text-indigo-600" />
             <h3 className="font-medium text-gray-900">{consultation.consultation_specialty}</h3>
           </div>
-          {consultation.doctor_name && (
+          {consultation.doctor?.name && (
             <p className="text-sm text-gray-600 mt-1">
-              Assigned to: {consultation.doctor_name}
+              Assigned to: {consultation.doctor.name}
             </p>
           )}
           <div className="flex items-center space-x-2 mt-1">

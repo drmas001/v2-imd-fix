@@ -31,9 +31,9 @@ const SpecialtyPatientList: React.FC<SpecialtyPatientListProps> = ({ onNavigateT
       shift_type: isWeekend ? 'weekend_morning' as const : 'morning' as const,
       is_weekend: isWeekend,
       safety_type: 'observation' as const,
-      admitting_doctor: consultation.doctor_name ? {
+      admitting_doctor: consultation.doctor ? {
         id: consultation.doctor_id || 0,
-        name: consultation.doctor_name,
+        name: consultation.doctor.name,
         medical_code: '',
         role: 'doctor' as const,
         department: consultation.consultation_specialty
@@ -49,7 +49,7 @@ const SpecialtyPatientList: React.FC<SpecialtyPatientListProps> = ({ onNavigateT
       gender: consultation.gender,
       date_of_birth: new Date(new Date().getFullYear() - consultation.age, 0, 1).toISOString(),
       department: consultation.consultation_specialty,
-      doctor_name: consultation.doctor_name,
+      doctor_name: consultation.doctor?.name || '',
       admission_date: consultation.created_at,
       admissions: [admission]
     };
@@ -86,7 +86,7 @@ const SpecialtyPatientList: React.FC<SpecialtyPatientListProps> = ({ onNavigateT
                     </div>
                     <div className="flex items-center text-sm text-gray-500">
                       <User className="h-4 w-4 mr-1" />
-                      {consultation.doctor_name || 'Pending Assignment'}
+                      {consultation.doctor?.name || 'Pending Assignment'}
                     </div>
                   </div>
                 </div>
