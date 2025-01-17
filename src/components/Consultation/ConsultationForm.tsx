@@ -45,7 +45,6 @@ const ConsultationForm: React.FC = () => {
         status: 'active',
         patient_id: 0, // This will be set by the backend
         doctor_id: 0, // This will be set by the backend
-        doctor_name: '', // This will be set by the backend
       };
 
       const result = await addConsultation(consultationData);

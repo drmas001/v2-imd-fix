@@ -93,12 +93,9 @@ export const useConsultationStore = create<ConsultationStore>((set, get) => ({
         }])
         .select(`
           *,
-          doctor:users!consultations_doctor_id_fkey (
+          doctor:users(
             id,
-            name,
-            medical_code,
-            role,
-            department
+            name
           )
         `)
         .single();
@@ -107,6 +104,7 @@ export const useConsultationStore = create<ConsultationStore>((set, get) => ({
 
       const newConsultation = {
         ...data,
+        doctor_name: data.doctor?.name || '',
         created_at: new Date(data.created_at).toISOString(),
         updated_at: new Date(data.updated_at).toISOString()
       } as Consultation;
