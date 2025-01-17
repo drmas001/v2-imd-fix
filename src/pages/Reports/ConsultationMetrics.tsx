@@ -64,8 +64,8 @@ const ConsultationMetrics: React.FC<ConsultationMetricsProps> = ({ dateFilter })
     };
 
     filtered.forEach(consultation => {
-      if (consultation.completed_at && consultation.consultation_date) {
-        const responseTime = new Date(consultation.completed_at).getTime() - new Date(consultation.consultation_date).getTime();
+      if (consultation.completed_at && consultation.created_at) {
+        const responseTime = new Date(consultation.completed_at).getTime() - new Date(consultation.created_at).getTime();
         times[consultation.urgency].push(responseTime);
       }
     });

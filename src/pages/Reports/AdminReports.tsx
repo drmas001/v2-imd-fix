@@ -56,8 +56,8 @@ const AdminReports: React.FC = () => {
             patient:patients(id, full_name),
             doctor:doctors(id, full_name, specialty)
           `)
-          .gte('consultation_date', dateFilter.startDate)
-          .lte('consultation_date', dateFilter.endDate);
+          .gte('created_at', dateFilter.startDate)
+          .lte('created_at', dateFilter.endDate);
 
         if (consultationsError) throw consultationsError;
 

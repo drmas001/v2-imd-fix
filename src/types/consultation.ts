@@ -1,6 +1,5 @@
 export interface Consultation {
   id: number;
-  consultation_date: string;
   created_at: string;
   status: string;
   patient_id: number;

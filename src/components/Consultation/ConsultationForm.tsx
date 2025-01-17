@@ -15,6 +15,8 @@ interface ConsultationFormData {
   shift_type: 'morning' | 'evening' | 'night';
   urgency: 'routine' | 'urgent' | 'emergency';
   reason: string;
+  doctor_id: number | null;
+  doctor_name: string;
 }
 
 const ConsultationForm: React.FC = () => {
@@ -30,7 +32,9 @@ const ConsultationForm: React.FC = () => {
     consultation_specialty: '',
     shift_type: 'morning',
     urgency: 'routine',
-    reason: ''
+    reason: '',
+    doctor_id: null,
+    doctor_name: ''
   });
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -40,7 +44,6 @@ const ConsultationForm: React.FC = () => {
         ...formData,
         status: 'active',
         patient_id: 0, // This will be set by the backend
-        consultation_date: new Date().toISOString(),
         doctor_id: 0, // This will be set by the backend
         doctor_name: '', // This will be set by the backend
       };
