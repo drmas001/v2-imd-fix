@@ -16,7 +16,6 @@ interface ConsultationFormData {
   urgency: 'routine' | 'urgent' | 'emergency';
   reason: string;
   doctor_id: number | null;
-  doctor_name: string;
 }
 
 const ConsultationForm: React.FC = () => {
@@ -33,8 +32,7 @@ const ConsultationForm: React.FC = () => {
     shift_type: 'morning',
     urgency: 'routine',
     reason: '',
-    doctor_id: null,
-    doctor_name: ''
+    doctor_id: null
   });
 
   const handleSubmit = async (e: React.FormEvent) => {

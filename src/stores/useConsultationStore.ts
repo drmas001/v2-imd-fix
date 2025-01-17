@@ -46,7 +46,6 @@ export const useConsultationStore = create<ConsultationStore>((set, get) => ({
       
       const consultationsWithDates = (data || []).map(consultation => ({
         ...consultation,
-        doctor_name: consultation.doctor?.name || '',
         created_at: new Date(consultation.created_at).toISOString(),
         updated_at: new Date(consultation.updated_at).toISOString(),
         completed_at: consultation.completed_at ? new Date(consultation.completed_at).toISOString() : undefined
@@ -95,7 +94,10 @@ export const useConsultationStore = create<ConsultationStore>((set, get) => ({
           *,
           doctor:users!consultations_doctor_id_fkey (
             id,
-            name
+            name,
+            medical_code,
+            role,
+            department
           )
         `)
         .single();
@@ -104,7 +106,6 @@ export const useConsultationStore = create<ConsultationStore>((set, get) => ({
 
       const newConsultation = {
         ...data,
-        doctor_name: data.doctor?.name || '',
         created_at: new Date(data.created_at).toISOString(),
         updated_at: new Date(data.updated_at).toISOString()
       } as Consultation;
@@ -154,7 +155,6 @@ export const useConsultationStore = create<ConsultationStore>((set, get) => ({
 
       const updatedConsultation = {
         ...data,
-        doctor_name: data.doctor?.name || '',
         created_at: new Date(data.created_at).toISOString(),
         updated_at: new Date(data.updated_at).toISOString(),
         completed_at: data.completed_at ? new Date(data.completed_at).toISOString() : undefined
@@ -202,7 +202,6 @@ export const useConsultationStore = create<ConsultationStore>((set, get) => ({
 
       return {
         ...data,
-        doctor_name: data.doctor?.name || '',
         created_at: new Date(data.created_at).toISOString(),
         updated_at: new Date(data.updated_at).toISOString(),
         completed_at: data.completed_at ? new Date(data.completed_at).toISOString() : undefined
