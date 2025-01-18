@@ -5,12 +5,16 @@ import { useConsultationStore } from '../stores/useConsultationStore';
 import { useAppointmentStore } from '../stores/useAppointmentStore';
 import { exportDailyReport } from '../utils/reportExport';
 import ReportFilters from '../components/Reports/ReportFilters';
-import ReportTable from '../components/Reports/ReportTable';
+import TableView from '../components/Reports/TableView';
 import ReportSummary from '../components/Reports/ReportSummary';
 import type { ReportFilters as ReportFiltersType } from '../types/report';
-import type { ExportData,} from '../types/report';
-import { PDFDocument } from '../utils/pdf/core/PDFDocument';
-import { PDFTable } from '../utils/pdf/core/PDFTable';
+import type { ExportData } from '../types/report';
+import { format } from 'date-fns';
+
+const formatDate = (date: string | Date, includeTime: boolean = false): string => {
+  const dateObj = new Date(date);
+  return format(dateObj, includeTime ? 'dd/MM/yyyy HH:mm' : 'dd/MM/yyyy');
+};
 
 const DailyReports: React.FC = () => {
   const { patients, fetchPatients } = usePatientStore();
@@ -37,11 +41,13 @@ const DailyReports: React.FC = () => {
       setIsLoading(true);
       setLoadingError(null);
       try {
+        console.log('Fetching data for reports...');
         await Promise.all([
           fetchPatients(true),
           fetchConsultations(),
           fetchAppointments()
         ]);
+        console.log('Data fetched successfully. Consultations:', consultations.length);
         setLastRefresh(new Date());
       } catch (error) {
         console.error('Error fetching data:', error);
@@ -60,129 +66,133 @@ const DailyReports: React.FC = () => {
     let dateFrom = new Date(filters.dateFrom);
     let dateTo = new Date(filters.dateTo);
 
-    // If it's a daily report, set the date range to last 24 hours
+    // If it's a daily report, set the date range to today (midnight to midnight)
     if (filters.reportType === 'daily') {
-      dateTo = new Date(); // Current time
-      dateFrom = new Date(dateTo.getTime() - (24 * 60 * 60 * 1000)); // 24 hours ago
+      const now = new Date();
+      dateFrom = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0); // Start of today
+      dateTo = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999); // End of today
     } else {
-      // For other report types, use the end of day
+      // For other report types, ensure we capture the full days
+      dateFrom.setHours(0, 0, 0, 0);
       dateTo.setHours(23, 59, 59, 999);
     }
 
-    const filteredConsultations = consultations.map(consultation => ({
-      id: consultation.id,
-      consultation_date: consultation.created_at,
-      created_at: consultation.created_at,
-      status: consultation.status,
-      patient_id: consultation.patient_id,
-      doctor_id: consultation.doctor_id || 0,
-      patient_name: consultation.patient_name,
-      mrn: consultation.mrn,
-      consultation_specialty: consultation.consultation_specialty,
-      urgency: consultation.urgency,
-      doctor_name: consultation.doctor?.name || '',
-      age: consultation.age,
-      gender: consultation.gender,
-      requesting_department: consultation.requesting_department,
-      patient_location: consultation.patient_location,
-      shift_type: consultation.shift_type,
-      reason: consultation.reason,
-      updated_at: consultation.updated_at
-    })).filter(consultation => {
-      const matchesDate = new Date(consultation.created_at) >= dateFrom &&
-        new Date(consultation.created_at) <= dateTo;
-      
-      const matchesSpecialty = filters.specialty === 'all' || 
-        consultation.consultation_specialty === filters.specialty;
-      
-      const matchesSearch = filters.searchQuery === '' ||
-        consultation.patient_name.toLowerCase().includes(filters.searchQuery.toLowerCase()) ||
-        consultation.mrn.toLowerCase().includes(filters.searchQuery.toLowerCase());
-
-      return matchesDate && matchesSpecialty && matchesSearch;
+    console.log('Filtering data:', {
+      dateRange: {
+        from: dateFrom.toISOString(),
+        to: dateTo.toISOString()
+      },
+      filters: {
+        specialty: filters.specialty,
+        searchQuery: filters.searchQuery,
+        reportType: filters.reportType
+      },
+      totalConsultations: consultations.length,
+      totalAppointments: appointments.length,
+      totalPatients: patients.length
     });
 
-    const filteredPatients = patients.map(patient => ({
-      id: patient.id,
-      full_name: patient.name,
-      name: patient.name,
-      created_at: new Date().toISOString(),
-      mrn: patient.mrn,
-      admission_date: patient.admission_date,
-      department: patient.department,
-      doctor_name: patient.doctor_name || '',
-      date_of_birth: patient.date_of_birth,
-      gender: patient.gender,
-      severity: 1,
-      admissions: patient.admissions?.map(admission => ({
-        status: admission.status,
-        admission_date: admission.admission_date,
-        discharge_date: admission.discharge_date,
-        department: admission.department,
-        diagnosis: admission.diagnosis,
-        visit_number: admission.visit_number,
-        safety_type: admission.safety_type,
-        admitting_doctor: admission.admitting_doctor ? {
-          name: admission.admitting_doctor.name
-        } : undefined
-      }))
-    })).filter(patient => {
-      const matchesDate = patient.admission_date && 
-        new Date(patient.admission_date) >= dateFrom &&
-        new Date(patient.admission_date) <= dateTo;
-      
-      const matchesSpecialty = filters.specialty === 'all' || 
-        patient.department === filters.specialty;
-      
-      const matchesSearch = filters.searchQuery === '' ||
-        patient.name.toLowerCase().includes(filters.searchQuery.toLowerCase()) ||
-        patient.mrn.toLowerCase().includes(filters.searchQuery.toLowerCase()) ||
-        patient.doctor_name.toLowerCase().includes(filters.searchQuery.toLowerCase());
+    // Filter recently admitted patients (last 24 hours)
+    const recentlyAdmittedPatients = patients
+      .filter(patient => {
+        // Get the most recent active admission
+        const activeAdmission = patient.admissions?.find(a => a.status === 'active');
+        if (!activeAdmission) return false;
 
-      return matchesDate && matchesSpecialty && matchesSearch;
-    });
+        const admissionDate = new Date(activeAdmission.admission_date);
+        const twentyFourHoursAgo = new Date();
+        twentyFourHoursAgo.setHours(twentyFourHoursAgo.getHours() - 24);
 
-    const filteredAppointments = appointments.filter(appointment => {
-      const matchesDate = new Date(appointment.createdAt) >= dateFrom &&
-        new Date(appointment.createdAt) <= dateTo;
-      
-      const matchesSpecialty = filters.specialty === 'all' || 
-        appointment.specialty === filters.specialty;
-      
-      const matchesSearch = filters.searchQuery === '' ||
-        appointment.patientName.toLowerCase().includes(filters.searchQuery.toLowerCase()) ||
-        appointment.medicalNumber.toLowerCase().includes(filters.searchQuery.toLowerCase());
+        const matchesDate = admissionDate >= twentyFourHoursAgo;
+        const matchesSpecialty = filters.specialty === 'all' || activeAdmission.department === filters.specialty;
+        const matchesSearch = !filters.searchQuery || 
+          patient.name.toLowerCase().includes(filters.searchQuery.toLowerCase()) ||
+          patient.mrn.toLowerCase().includes(filters.searchQuery.toLowerCase());
 
-      return matchesDate && matchesSpecialty && matchesSearch;
-    }).map(appointment => {
-      let appointmentType: 'routine' | 'urgent';
-      if (appointment.appointmentType === 'routine' || appointment.appointmentType === 'urgent') {
-        appointmentType = appointment.appointmentType;
-      } else {
-        appointmentType = 'routine';
-      }
+        return matchesDate && matchesSpecialty && matchesSearch;
+      })
+      .map(patient => {
+        const activeAdmission = patient.admissions?.find(a => a.status === 'active');
+        return {
+          id: patient.id,
+          full_name: patient.name,
+          name: patient.name,
+          mrn: patient.mrn,
+          department: activeAdmission?.department || '',
+          admission_date: activeAdmission?.admission_date || '',
+          doctor_name: activeAdmission?.admitting_doctor?.name || '',
+          created_at: patient.created_at || new Date().toISOString(),
+          date_of_birth: patient.date_of_birth,
+          gender: patient.gender,
+          admissions: patient.admissions || []
+        };
+      });
 
-      return {
+    const filteredConsultations = consultations
+      .filter(consultation => {
+        const consultationDate = new Date(consultation.created_at);
+        const matchesDate = consultationDate >= dateFrom && consultationDate <= dateTo;
+        const matchesSpecialty = filters.specialty === 'all' || consultation.consultation_specialty === filters.specialty;
+        const matchesSearch = !filters.searchQuery || 
+          consultation.patient_name.toLowerCase().includes(filters.searchQuery.toLowerCase()) ||
+          consultation.mrn.toLowerCase().includes(filters.searchQuery.toLowerCase());
+        const isNotDischarged = consultation.status !== 'discharged';
+
+        return matchesDate && matchesSpecialty && matchesSearch && isNotDischarged;
+      })
+      .map(consultation => ({
+        id: consultation.id,
+        consultation_date: consultation.created_at,
+        created_at: consultation.created_at,
+        status: consultation.status,
+        patient_id: consultation.patient_id,
+        doctor_id: consultation.doctor_id || 0,
+        patient_name: consultation.patient_name,
+        mrn: consultation.mrn,
+        consultation_specialty: consultation.consultation_specialty,
+        urgency: consultation.urgency,
+        doctor_name: consultation.doctor?.name || '',
+        age: consultation.age,
+        gender: consultation.gender,
+        requesting_department: consultation.requesting_department,
+        patient_location: consultation.patient_location,
+        shift_type: consultation.shift_type,
+        reason: consultation.reason,
+        updated_at: consultation.updated_at
+      }));
+
+    // Filter upcoming appointments
+    const filteredAppointments = appointments
+      .filter(appointment => {
+        const appointmentDate = new Date(appointment.createdAt);
+        const matchesDate = appointmentDate >= dateFrom && appointmentDate <= dateTo;
+        const matchesSpecialty = filters.specialty === 'all' || appointment.specialty === filters.specialty;
+        const matchesSearch = !filters.searchQuery || 
+          appointment.patientName.toLowerCase().includes(filters.searchQuery.toLowerCase()) ||
+          appointment.medicalNumber.toLowerCase().includes(filters.searchQuery.toLowerCase());
+        const isPending = appointment.status === 'pending';
+
+        return matchesDate && matchesSpecialty && matchesSearch && isPending;
+      })
+      .map(appointment => ({
         id: appointment.id,
         patientName: appointment.patientName,
         medicalNumber: appointment.medicalNumber,
         specialty: appointment.specialty,
-        appointmentType: appointmentType,
+        appointmentType: appointment.appointmentType,
         createdAt: appointment.createdAt,
         status: appointment.status,
-      };
-    });
+        notes: appointment.notes
+      }));
 
     return {
-      patients: filteredPatients,
       consultations: filteredConsultations,
+      patients: filters.reportType === 'daily' ? recentlyAdmittedPatients : [], // Include recently admitted patients only for daily reports
       appointments: filteredAppointments,
       dateFilter: {
-        startDate: filters.dateFrom,
-        endDate: filters.dateTo,
-        period: filters.reportType === 'daily' ? 'today' :
-                filters.reportType === 'weekly' ? 'week' :
-                filters.reportType === 'monthly' ? 'month' : 'custom'
+        startDate: dateFrom.toISOString(),
+        endDate: dateTo.toISOString(),
+        period: filters.reportType
       },
       generatedAt: new Date().toISOString(),
       generatedBy: 'system'
@@ -190,12 +200,12 @@ const DailyReports: React.FC = () => {
   };
 
   const handleFilterChange = (newFilters: ReportFiltersType) => {
-    // If switching to daily report, set date range to last 24 hours
+    // If switching to daily report, set date range to today
     if (newFilters.reportType === 'daily') {
       const now = new Date();
-      const last24Hours = new Date(now.getTime() - (24 * 60 * 60 * 1000));
-      newFilters.dateTo = now.toISOString().split('T')[0];
-      newFilters.dateFrom = last24Hours.toISOString().split('T')[0];
+      const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      newFilters.dateFrom = today.toISOString().split('T')[0];
+      newFilters.dateTo = today.toISOString().split('T')[0];
     }
     
     setFilters(newFilters);
@@ -209,49 +219,7 @@ const DailyReports: React.FC = () => {
 
     try {
       const filteredData = getFilteredData();
-      const doc = new PDFDocument({
-        title: 'Daily Report',
-        showLogo: false,
-      });
-      await doc.initialize();
-
-      const pdfTable = new PDFTable(doc.document);
-
-      // Define starting Y position
-      let startY = 60;
-
-      // Add tables for patients, consultations, and appointments as needed
-      // Ensure that the data conforms to the expected structure
-
-      // Example for Patients
-      pdfTable.addTable({
-        head: [
-          {
-            cells: [
-              { content: 'MRN', styles: { fontStyle: 'bold' } },
-              { content: 'Patient Name', styles: { fontStyle: 'bold' } },
-              { content: 'Department', styles: { fontStyle: 'bold' } },
-              { content: 'Assigned Doctor', styles: { fontStyle: 'bold' } },
-            ],
-          },
-        ],
-        body: filteredData.patients.filter(patient => 
-          filters.specialty === 'all' || patient.department === filters.specialty
-        ).map((patient) => ({
-          cells: [
-            { content: patient.mrn || '' },
-            { content: patient.name || '' },
-            { content: patient.department || '' },
-            { content: patient.doctor_name || '' },
-          ],
-        })),
-        startY,
-        theme: 'grid',
-        tableTitle: 'Patients Report',
-      });
-
-      // Save the PDF
-      doc.save('DailyReport.pdf');
+      await exportDailyReport(filteredData);
     } catch (error) {
       console.error('Export error:', error);
       setExportError(
@@ -338,9 +306,72 @@ const DailyReports: React.FC = () => {
           <ReportFilters onFilterChange={handleFilterChange} />
         </div>
 
+        {/* Recently Admitted Patients Table */}
+        {filters.reportType === 'daily' && filteredData.patients.length > 0 && (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <h2 className="text-lg font-semibold mb-4">Admitted Patients (Last 24 Hours)</h2>
+            <TableView
+              data={filteredData.patients.map(patient => {
+                const activeAdmission = patient.admissions?.find(a => a.status === 'active');
+                return {
+                  ...patient,
+                  shift_type: activeAdmission?.shift_type || '-',
+                  safety_type: activeAdmission?.safety_type || '-'
+                };
+              })}
+              columns={[
+                { header: 'Patient Name', accessor: 'name' },
+                { header: 'MRN', accessor: 'mrn' },
+                { header: 'Department', accessor: 'department' },
+                { header: 'Doctor', accessor: 'doctor_name' },
+                { header: 'Shift Type', accessor: 'shift_type',
+                  format: (value: string) => value.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) },
+                { header: 'Safety Type', accessor: 'safety_type',
+                  format: (value: string) => value === '-' ? '-' : value.replace('-', ' ').replace(/\b\w/g, l => l.toUpperCase()) }
+              ]}
+            />
+          </div>
+        )}
+
+        {/* Medical Consultations Table */}
+        {filteredData.consultations.length > 0 && (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <h2 className="text-lg font-semibold mb-4">Medical Consultations</h2>
+            <TableView
+              data={filteredData.consultations}
+              columns={[
+                { header: 'Patient Name', accessor: 'patient_name' },
+                { header: 'MRN', accessor: 'mrn' },
+                { header: 'Specialty', accessor: 'consultation_specialty' },
+                { header: 'Doctor', accessor: 'doctor_name' },
+                { header: 'Created', accessor: 'created_at',
+                  format: (value: string) => formatDate(value, false) },
+                { header: 'Urgency', accessor: 'urgency' }
+              ]}
+            />
+          </div>
+        )}
+
+        {/* Appointments Table */}
+        {filteredData.appointments.length > 0 && (
+          <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+            <h2 className="text-lg font-semibold mb-4">Upcoming Appointments</h2>
+            <TableView
+              data={filteredData.appointments}
+              columns={[
+                { header: 'Patient Name', accessor: 'patientName' },
+                { header: 'Medical Number', accessor: 'medicalNumber' },
+                { header: 'Specialty', accessor: 'specialty' },
+                { header: 'Type', accessor: 'appointmentType' },
+                { header: 'Created', accessor: 'createdAt',
+                  format: (value: string) => formatDate(value, false) },
+                { header: 'Status', accessor: 'status' }
+              ]}
+            />
+          </div>
+        )}
+
         <ReportSummary dateFilter={filters} />
-        
-     
       </div>
     </div>
   );

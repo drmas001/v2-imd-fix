@@ -72,6 +72,28 @@ export const exportDailyReport = async (data: ExportData): Promise<void> => {
     
     currentY += 15;
 
+    // Recently Admitted Patients Section (last 24 hours)
+    if (data.patients.length > 0) {
+      doc.setFontSize(14);
+      doc.text('Admitted Patients (in the last 24 hours)', 14, currentY);
+      currentY += 10;
+
+      autoTable(doc, {
+        ...createTableOptions(currentY),
+        ...getTableBaseStyles(),
+        head: [['Patient', 'MRN', 'Department', 'Doctor', 'Admission Date']],
+        body: data.patients.map(patient => [
+          patient.name,
+          patient.mrn,
+          patient.department,
+          patient.doctor_name || 'Not assigned',
+          formatDate(patient.admission_date, true)
+        ])
+      });
+
+      currentY = (doc as any).lastAutoTable.finalY + 15;
+    }
+
     // Medical Consultations Section
     if (data.consultations.length > 0) {
       doc.setFontSize(14);
@@ -123,6 +145,7 @@ export const exportDailyReport = async (data: ExportData): Promise<void> => {
     currentY += 10;
 
     const summaryData = [
+      ['Total Recently Admitted Patients', data.patients.length.toString()],
       ['Total Medical Consultations', data.consultations.length.toString()],
       ['Total Clinic Appointments', data.appointments.length.toString()],
       ['Emergency Consultations', data.consultations.filter(c => c.urgency === 'emergency').length.toString()],

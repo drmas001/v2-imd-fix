@@ -20,6 +20,7 @@ export const useConsultationStore = create<ConsultationStore>((set, get) => ({
   fetchConsultations: async () => {
     set({ loading: true, error: null });
     try {
+      console.log('Fetching consultations...');
       const { data, error } = await supabase
         .from('consultations')
         .select(`
@@ -39,20 +40,29 @@ export const useConsultationStore = create<ConsultationStore>((set, get) => ({
             department
           )
         `)
-        .eq('status', 'active')
         .order('created_at', { ascending: false });
 
-      if (error) throw error;
+      if (error) {
+        console.error('Error fetching consultations:', error);
+        throw error;
+      }
       
-      const consultationsWithDates = (data || []).map(consultation => ({
-        ...consultation,
-        created_at: new Date(consultation.created_at).toISOString(),
-        updated_at: new Date(consultation.updated_at).toISOString(),
-        completed_at: consultation.completed_at ? new Date(consultation.completed_at).toISOString() : undefined
-      }));
+      console.log('Fetched consultations:', data?.length || 0);
+      
+      const consultationsWithDates = (data || []).map(consultation => {
+        const processed = {
+          ...consultation,
+          created_at: new Date(consultation.created_at).toISOString(),
+          updated_at: new Date(consultation.updated_at).toISOString(),
+          completed_at: consultation.completed_at ? new Date(consultation.completed_at).toISOString() : undefined
+        };
+        console.log('Processed consultation:', processed.id, processed.created_at);
+        return processed;
+      });
 
       set({ consultations: consultationsWithDates as Consultation[], loading: false });
     } catch (error) {
+      console.error('Error in fetchConsultations:', error);
       set({ error: (error as Error).message, loading: false });
     }
   },
@@ -60,13 +70,18 @@ export const useConsultationStore = create<ConsultationStore>((set, get) => ({
   addConsultation: async (consultation) => {
     set({ loading: true, error: null });
     try {
+      // First check if patient exists
       const { data: patientData, error: patientError } = await supabase
         .from('patients')
         .select('id')
         .eq('mrn', consultation.mrn)
         .single();
 
-      if (patientError) {
+      console.log('Patient lookup response:', { patientData, patientError });
+
+      let patientId;
+      if (patientError || !patientData) {
+        // Create new patient if not found
         const { data: newPatient, error: createError } = await supabase
           .from('patients')
           .insert([{
@@ -78,28 +93,65 @@ export const useConsultationStore = create<ConsultationStore>((set, get) => ({
           .select()
           .single();
 
-        if (createError) throw createError;
-        consultation.patient_id = newPatient.id;
+        if (createError) {
+          console.error('Error creating patient:', createError);
+          throw createError;
+        }
+        patientId = newPatient.id;
       } else {
-        consultation.patient_id = patientData.id;
+        patientId = patientData.id;
       }
 
-      const { data, error } = await supabase
+      // Create consultation with patient ID
+      const { data: insertedData, error: insertError } = await supabase
         .from('consultations')
         .insert([{
           ...consultation,
+          patient_id: patientId,
           doctor_id: null,
           status: 'active'
         }])
-        .select('*')
+        .select()
         .single();
 
-      if (error) throw error;
+      if (insertError) {
+        console.error('Error inserting consultation:', insertError);
+        throw insertError;
+      }
+
+      // Fetch complete consultation data
+      const { data: completeData, error: fetchError } = await supabase
+        .from('consultations')
+        .select(`
+          *,
+          doctor:users!consultations_doctor_id_fkey (
+            id,
+            name,
+            medical_code,
+            role,
+            department
+          ),
+          completed_by_user:users!consultations_completed_by_fkey (
+            id,
+            name,
+            medical_code,
+            role,
+            department
+          )
+        `)
+        .eq('id', insertedData.id)
+        .single();
+
+      if (fetchError) {
+        console.error('Error fetching complete consultation:', fetchError);
+        throw fetchError;
+      }
 
       const newConsultation = {
-        ...data,
-        created_at: new Date(data.created_at).toISOString(),
-        updated_at: new Date(data.updated_at).toISOString()
+        ...completeData,
+        created_at: new Date(completeData.created_at).toISOString(),
+        updated_at: new Date(completeData.updated_at).toISOString(),
+        completed_at: completeData.completed_at ? new Date(completeData.completed_at).toISOString() : undefined
       } as Consultation;
 
       set(state => ({
@@ -107,8 +159,12 @@ export const useConsultationStore = create<ConsultationStore>((set, get) => ({
         loading: false
       }));
 
+      // Refresh the consultations list
+      await get().fetchConsultations();
+
       return newConsultation;
     } catch (error) {
+      console.error('Error in addConsultation:', error);
       set({ error: (error as Error).message, loading: false });
       return null;
     }

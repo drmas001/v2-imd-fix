@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Users, Stethoscope, Clock, TrendingUp } from 'lucide-react';
 import { usePatientStore } from '../../stores/usePatientStore';
 import { useConsultationStore } from '../../stores/useConsultationStore';
@@ -10,30 +10,42 @@ interface ReportSummaryProps {
 
 const ReportSummary: React.FC<ReportSummaryProps> = ({ dateFilter }) => {
   const { patients } = usePatientStore();
-  const { consultations } = useConsultationStore();
+  const { consultations, fetchConsultations, loading } = useConsultationStore();
+  const TOTAL_BEDS = 100; // Total hospital capacity
 
-  const activePatients = patients.filter(patient => {
-    const admission = patient.admissions?.[0];
-    return admission?.status === 'active' &&
+  useEffect(() => {
+    fetchConsultations();
+  }, [fetchConsultations]);
+
+  const activePatients = patients.filter(patient => 
+    patient.admissions?.some(admission => 
+      admission.status === 'active' &&
       new Date(admission.admission_date) >= new Date(dateFilter.dateFrom) &&
-      new Date(admission.admission_date) <= new Date(dateFilter.dateTo);
-  });
-
-  const activeConsultations = consultations.filter(consultation =>
-    consultation.status === 'active' &&
-    new Date(consultation.created_at) >= new Date(dateFilter.dateFrom) &&
-    new Date(consultation.created_at) <= new Date(dateFilter.dateTo)
+      new Date(admission.admission_date) <= new Date(dateFilter.dateTo)
+    )
   );
 
+  const activeConsultations = consultations.filter(consultation => {
+    const consultationDate = new Date(consultation.created_at);
+    return consultationDate >= new Date(dateFilter.dateFrom) &&
+           consultationDate <= new Date(dateFilter.dateTo) &&
+           consultation.status === 'active';
+  });
+
   const calculateAverageStay = () => {
-    const admissionsWithDuration = activePatients.map(patient => {
-      const admission = patient.admissions?.[0];
-      if (!admission) return 0;
-      
-      const admissionDate = new Date(admission.admission_date);
-      const now = new Date();
-      return Math.ceil((now.getTime() - admissionDate.getTime()) / (1000 * 60 * 60 * 24));
-    }).filter(duration => duration > 0);
+    const admissionsWithDuration = activePatients
+      .flatMap(patient => patient.admissions || [])
+      .filter(admission => 
+        admission.status === 'active' &&
+        new Date(admission.admission_date) >= new Date(dateFilter.dateFrom) &&
+        new Date(admission.admission_date) <= new Date(dateFilter.dateTo)
+      )
+      .map(admission => {
+        const admissionDate = new Date(admission.admission_date);
+        const now = new Date();
+        return Math.ceil((now.getTime() - admissionDate.getTime()) / (1000 * 60 * 60 * 24));
+      })
+      .filter(duration => duration > 0);
 
     if (admissionsWithDuration.length === 0) return 0;
     
@@ -41,7 +53,7 @@ const ReportSummary: React.FC<ReportSummaryProps> = ({ dateFilter }) => {
     return Math.round(totalDays / admissionsWithDuration.length);
   };
 
-  const occupancyRate = Math.round((activePatients.length / 100) * 100);
+  const occupancyRate = Math.round((activePatients.length / TOTAL_BEDS) * 100);
 
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 mb-6">

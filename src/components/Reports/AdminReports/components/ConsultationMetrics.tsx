@@ -26,10 +26,31 @@ const ConsultationMetrics: React.FC<ConsultationMetricsProps> = ({ dateFilter })
   const { consultations } = useConsultationStore();
 
   const getFilteredConsultations = () => {
-    return consultations.filter(consultation =>
-      new Date(consultation.created_at) >= new Date(dateFilter.startDate) &&
-      new Date(consultation.created_at) <= new Date(dateFilter.endDate)
-    );
+    const startDate = new Date(dateFilter.startDate);
+    const endDate = new Date(dateFilter.endDate);
+    endDate.setHours(23, 59, 59, 999); // Set to end of day
+
+    console.log('Date range:', {
+      startDate,
+      endDate,
+      totalConsultations: consultations.length
+    });
+
+    const filtered = consultations.filter(consultation => {
+      const consultationDate = new Date(consultation.created_at);
+      return consultationDate >= startDate && consultationDate <= endDate;
+    });
+
+    console.log('Filtered consultations:', {
+      count: filtered.length,
+      consultations: filtered.map(c => ({
+        id: c.id,
+        created_at: c.created_at,
+        urgency: c.urgency
+      }))
+    });
+
+    return filtered;
   };
 
   const getUrgencyData = (): UrgencyData[] => {
